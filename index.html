@@ -41,13 +41,19 @@
   <div class="topbar">
     <h2 id="page-h">全部遊戲 🎮</h2>
     <div class="search"><input id="q" placeholder="搜尋遊戲、廠商…" oninput="renderCurrent()"></div>
-    <button class="mob-menu-btn" onclick="toggleMobMenu()">☰</button>
-    <button class="tbtn tbtn-csv" onclick="exportCSV()">⬇ <span class="lbl">CSV</span></button>
-    <button class="tbtn tbtn-html" onclick="exportHTML()">💾 <span class="lbl">備份</span></button>
     <button class="tbtn tbtn-push" id="push-btn" onclick="pushToGitHub()" title="推送至 GitHub">☁️ <span class="lbl" id="push-lbl">儲存</span></button>
-    <button class="tbtn tbtn-gh" id="gh-btn" onclick="openGHModal()" title="GitHub 設定">⚙️ <span class="lbl" id="gh-lbl">GitHub</span></button>
     <button class="tbtn tbtn-reset" onclick="resetStorage()" title="清除本機暫存資料">🔄 <span class="lbl">重置</span></button>
     <button class="tbtn tbtn-add" onclick="openModal()">＋ 新增遊戲</button>
+  </div>
+
+  <!-- 左下角漢堡選單 -->
+  <div class="fab-wrap" id="fab-wrap">
+    <div class="fab-items" id="fab-items">
+      <button class="fab-item" onclick="exportCSV()">⬇ CSV</button>
+      <button class="fab-item" onclick="exportHTML()">💾 備份</button>
+      <button class="fab-item" id="gh-btn" onclick="openGHModal()"><span id="gh-lbl">⚙️ GitHub</span></button>
+    </div>
+    <button class="fab-trigger" id="fab-trigger" onclick="toggleFabMenu()" title="工具選單">☰</button>
   </div>
   <div class="pages">
     <div class="page on" id="pg-all">
