@@ -498,10 +498,20 @@ async function pushToGitHub(){
 function ghSetToken(t){localStorage.setItem('gh_token',t);}
 function updateGHBtn(){
   const lbl=document.getElementById('gh-lbl');
-  const btn=document.getElementById('gh-btn');
-  if(!lbl||!btn)return;
-  if(ghToken()){lbl.textContent='✓ GitHub';btn.style.color='var(--mint,#4caf7d)';}
-  else{lbl.textContent='⚙️ GitHub';btn.style.color='';}
+  if(!lbl)return;
+  if(ghToken()){lbl.textContent='✓ GitHub';lbl.style.color='var(--mint,#4caf7d)';}
+  else{lbl.textContent='⚙️ GitHub';lbl.style.color='';}
+}
+function toggleFabMenu(){
+  const items=document.getElementById('fab-items');
+  const trigger=document.getElementById('fab-trigger');
+  if(!items)return;
+  const open=items.classList.toggle('open');
+  if(trigger)trigger.textContent=open?'✕':'☰';
+  if(open){
+    const close=e=>{if(!document.getElementById('fab-wrap')?.contains(e.target)){items.classList.remove('open');if(trigger)trigger.textContent='☰';document.removeEventListener('click',close);}};
+    setTimeout(()=>document.addEventListener('click',close),0);
+  }
 }
 function openGHModal(){
   const cur=ghToken();

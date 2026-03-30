@@ -139,8 +139,50 @@ aside footer {
 .tbtn-push { border-color: #6875d8; color: #6875d8; font-weight: 600; }
 .tbtn-push:hover { background: #eef2ff; }
 .tbtn-push:disabled { opacity: .5; cursor: not-allowed; }
-.tbtn-gh { border-color: var(--border2); color: var(--tx3); font-size: 12px; }
-.tbtn-gh:hover { background: var(--bg2); }
+
+/* ── 左下角漢堡選單 ── */
+.fab-wrap {
+  position: fixed;
+  bottom: 52px;
+  left: 20px;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.fab-trigger {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--tx2);
+  transition: background .15s;
+}
+.fab-trigger:hover { background: var(--bg3,#e8e5e0); }
+.fab-items {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+}
+.fab-items.open { display: flex; }
+.fab-item {
+  padding: 8px 16px;
+  border-radius: 50px;
+  border: 1px solid var(--border2);
+  background: var(--bg);
+  box-shadow: 0 2px 8px rgba(0,0,0,.10);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--tx2);
+  white-space: nowrap;
+  transition: background .15s;
+}
+.fab-item:hover { background: var(--bg2); color: var(--tx); }
 
 /* pages */
 .pages { flex: 1; overflow: hidden; display: flex; }
