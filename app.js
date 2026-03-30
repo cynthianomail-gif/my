@@ -59,7 +59,7 @@ const PROV = {
 };
 const CC={'Ways':'cw','Cluster Pays':'cc','Scatter Pays':'cs','Paylines':'cl','Meter Pay':'cm','特殊':'cx'};
 const BC={'Hacksaw Gaming':'b-hk','NoLimit City':'b-nl','ELK Studios':'b-elk',"Play'n GO":'b-png','Shady Lady':'b-sl','Pragmatic Play':'b-prag'};
-const VC={'Extreme':'ve','High':'vh','Medium-High':'vm','Medium':'vm'};
+const VC={'Extreme':'ve','High':'vh','Medium-High':'vm','Medium':'vm','Medium-Low':'vml','Low':'vl'};
 
 
 function saveToStorage(){try{localStorage.setItem('slotdb_v1',JSON.stringify({g:G,nid,ts:Date.now()}));}catch(e){}}
@@ -146,7 +146,7 @@ function heroImg(src, name, provider) {
 function pk(p){return{'Hacksaw Gaming':'hacksaw','NoLimit City':'nolimit','ELK Studios':'elk',"Play'n GO":'playngo','Shady Lady':'shady','Pragmatic Play':'prag'}[p]||''}
 function fd(s){return s?new Date(s).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'}):'—'}
 function ml(s){if(!s)return'';const d=new Date(s);return`${d.getFullYear()} 年 ${d.getMonth()+1} 月`}
-function vcl(v){return{Extreme:'ve',High:'vh','Medium-High':'vm',Medium:'vm'}[v]||'vm'}
+function vcl(v){return{Extreme:'ve',High:'vh','Medium-High':'vm',Medium:'vm','Medium-Low':'vml',Low:'vl'}[v]||'vm'}
 function scl(s){return{'提案候補':'cand','已提案':'active','庫存':'stock'}[s]||''}
 function ccl(c){return{Ways:'cw','Cluster Pays':'cc','Scatter Pays':'cs',Paylines:'cl','Meter Pay':'cm'}[c]||'cw'}
 function bcl(p){return{'Hacksaw Gaming':'b-hk','NoLimit City':'b-nl','ELK Studios':'b-elk',"Play'n GO":'b-png','Shady Lady':'b-sl','Pragmatic Play':'b-prag'}[p]||''}
@@ -166,7 +166,7 @@ function gameLink(g){
 function filt(pf=null){
   const q=(document.getElementById('q')||{}).value?.toLowerCase()||'';
   let r=G.filter(g=>(pf?g.provider===pf:true)&&(!q||g.name.toLowerCase().includes(q)||g.provider.toLowerCase().includes(q)));
-  const VOL_ORD={'Low':1,'Medium':2,'Medium-High':3,'High':4,'Extreme':5};
+  const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
   r.sort((a,b)=>{let av=a[ss.k]||'',bv=b[ss.k]||'';
     if(ss.k==='rtp'||ss.k==='maxwin'){av=parseFloat(av)||0;bv=parseFloat(bv)||0}
     if(ss.k==='vol'){av=VOL_ORD[av]||0;bv=VOL_ORD[bv]||0}
@@ -330,7 +330,7 @@ function stab(el,id){
 function renderProv(pname){
   const key=pk(pname);const pi=PROV[pname]||{};const el=document.getElementById('pg-'+key);
   const q=(document.getElementById('q')||{}).value?.toLowerCase()||'';
-  const VOL_ORD={'Low':1,'Medium':2,'Medium-High':3,'High':4,'Extreme':5};
+  const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
   const pG=G.filter(g=>g.provider===pname&&(!q||g.name.toLowerCase().includes(q)||g.sum?.toLowerCase().includes(q)));
   pG.sort((a,b)=>{let av=a[ss.k]||'',bv=b[ss.k]||'';
     if(ss.k==='maxwin'){av=parseFloat(av)||0;bv=parseFloat(bv)||0}

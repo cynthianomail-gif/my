@@ -136,8 +136,8 @@ aside footer {
 .tbtn-html:hover { background: var(--bg2); }
 .tbtn-reset { border-color: var(--tx4); color: var(--tx3); }
 .tbtn-reset:hover { background: var(--bg2); }
-.tbtn-push { border-color: #6875d8; color: #6875d8; font-weight: 600; }
-.tbtn-push:hover { background: #eef2ff; }
+.tbtn-push { border-color: var(--tx4); color: var(--tx3); font-weight: 600; }
+.tbtn-push:hover { background: var(--bg2); }
 .tbtn-push:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ── 左下角漢堡選單 ── */
@@ -265,6 +265,8 @@ td { padding: 11px 12px; vertical-align: middle; }
 .vbadge { padding: 2px 8px; border-radius: 50px; font-size: 10px; font-weight: 800; }
 .vh  { background: var(--accent-bg); color: var(--accent); }
 .vm  { background: var(--tag-bg);    color: var(--tag-tx); }
+.vml { background: #e8f5e9; color: #4caf50; }
+.vl  { background: #e0f2f1; color: #26a69a; }
 .ve  { background: var(--accent-bg); color: #c05070; }
 
 /* 狀態標籤 */
@@ -562,7 +564,7 @@ tbody tr { animation: fadeUp .2s ease forwards; opacity: 0; }
   .search input{width:100%;box-sizing:border-box}
   /* 按鈕只保留圖示 */
   .tbtn{padding:7px 10px;font-size:11px}
-  .tbtn-html .lbl,.tbtn-csv .lbl,.tbtn-reset .lbl{display:none}
+  .tbtn-html .lbl,.tbtn-csv .lbl,.tbtn-reset .lbl,.tbtn-push .lbl{display:none}
 
   /* 表格橫向捲動 */
   .page{padding:10px 8px 60px;overflow-x:auto;-webkit-overflow-scrolling:touch}

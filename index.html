@@ -39,9 +39,10 @@
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
+    <button class="mob-menu-btn" onclick="toggleMobMenu()">☰</button>
     <h2 id="page-h">全部遊戲 🎮</h2>
     <div class="search"><input id="q" placeholder="搜尋遊戲、廠商…" oninput="renderCurrent()"></div>
-    <button class="tbtn tbtn-push" id="push-btn" onclick="pushToGitHub()" title="推送至 GitHub">☁️ <span class="lbl" id="push-lbl">儲存</span></button>
+    <button class="tbtn tbtn-push" id="push-btn" onclick="pushToGitHub()" title="推送至 GitHub">📤 <span class="lbl" id="push-lbl">儲存</span></button>
     <button class="tbtn tbtn-reset" onclick="resetStorage()" title="清除本機暫存資料">🔄 <span class="lbl">重置</span></button>
     <button class="tbtn tbtn-add" onclick="openModal()">＋ 新增遊戲</button>
   </div>
@@ -2339,7 +2340,7 @@
       <div class="fg"><label>RTP %（最高）</label><input id="m-rtp" placeholder="96.22"></div>
       <div class="fg"><label>Max Win (x)</label><input id="m-mw" placeholder="10000"></div>
       <div class="fg"><label>波動度</label>
-        <select id="m-vol"><option value="">請選擇</option><option>Extreme</option><option>High</option><option>Medium-High</option><option>Medium</option></select>
+        <select id="m-vol"><option value="">請選擇</option><option>Extreme</option><option>High</option><option>Medium-High</option><option>Medium</option><option>Medium-Low</option><option>Low</option></select>
       </div>
       <div class="fg"><label>狀態</label>
         <select id="m-status"><option value="">未設定</option><option value="提案候補">提案候補</option><option value="已提案">已提案</option><option value="庫存">庫存</option></select>
