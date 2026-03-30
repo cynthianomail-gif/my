@@ -1,3 +1,7 @@
+// ── GitHub 設定 ──
+const GH_REPO='cynthianomail-gif/my';
+const GH_FILE='data.js';
+
 // 從 data.js 載入遊戲資料
 let G = (_DB && _DB.g) ? _DB.g.slice() : [];
 let nid = (_DB && _DB.nid) ? _DB.nid : 1;
@@ -20,6 +24,29 @@ let eid=null, selId=null, cur='all', ss={k:'releaseDate',d:-1};
   }
   // 若 data.js 比較新（剛從 GitHub 拉回），保留 data.js 的 G 不動
 })();
+
+// ── 啟動時自動從 GitHub 拉最新 data.js（確保本地不會吃到舊資料）──
+async function syncFromGitHub(){
+  try{
+    const res=await fetch('https://raw.githubusercontent.com/'+GH_REPO+'/main/'+GH_FILE+'?_='+Date.now());
+    if(!res.ok)return;
+    const text=await res.text();
+    const m=text.match(/var\s+_DB\s*=\s*(\{[\s\S]*\})\s*;/);
+    if(!m)return;
+    const remote=JSON.parse(m[1]);
+    const localTs=(_DB&&_DB.ts)||0;
+    if(remote.ts>localTs){
+      G=remote.g.slice();
+      nid=Math.max(remote.nid||0,nid);
+      _DB.ts=remote.ts;_DB.g=remote.g;_DB.nid=remote.nid;
+      saveToStorage();
+      if(typeof renderMain==='function')renderMain();
+      console.log('[syncFromGitHub] 已從 GitHub 同步最新資料 (ts:'+remote.ts+')');
+    }else{
+      console.log('[syncFromGitHub] 本地資料已是最新');
+    }
+  }catch(e){console.log('[syncFromGitHub] 離線或無法連線，使用本地資料');}
+}
 
 // ── PROVIDER CONFIG ──
 const PROV = {
@@ -450,9 +477,6 @@ function resetStorage(){
 
 // ── GitHub 自動同步 ──
 
-const GH_REPO='cynthianomail-gif/my';
-const GH_FILE='data.js';
-
 function ghToken(){return localStorage.getItem('gh_token')||'';}
 
 function markUnsaved(){
@@ -547,3 +571,5 @@ function showToast(msg){
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
 document.getElementById('modal-ov').addEventListener('click',e=>{if(e.target===document.getElementById('modal-ov'))closeModal()});
 renderMain();
+// 頁面載入後自動同步 GitHub 最新資料
+syncFromGitHub();
