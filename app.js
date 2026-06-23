@@ -183,7 +183,13 @@ const THEME_CATS=[
   {label:'運動', re:/足球|賽車|競速|鬥牛|世界盃/},
   {label:'諷刺/黑色幽默', re:/諷刺|黑色幽默|政治|詐騙|陰謀|大麻/},
 ];
-function themeCatMatch(g,label){const t=themeOf(g);if(!t)return false;if(label==='其他')return !THEME_CATS.some(c=>c.re.test(t)||c.label===t);const c=THEME_CATS.find(x=>x.label===label);return c?(t===label||c.re.test(t)):false;}
+function themeCatMatch(g,label){const t=themeOf(g);if(!t)return false;
+  // 主題若是明確分類標籤（編輯時指定/已遷移）→ 只做精確比對，避免標籤內關鍵字誤觸其他分類（如「恐怖/萬聖」含「萬聖」誤判節慶）
+  const exp=t==='其他'||THEME_CATS.some(c=>c.label===t);
+  if(exp)return label==='其他'?t==='其他':t===label;
+  // 自由文字主題（未指定的新遊戲，自動依摘要）→ 關鍵字比對
+  if(label==='其他')return !THEME_CATS.some(c=>c.re.test(t));
+  const c=THEME_CATS.find(x=>x.label===label);return c?c.re.test(t):false;}
 function fv(id){const e=document.getElementById(id);return e?e.value:'';}
 // 連線分類：各種線數類（X 線 / Lines / Paylines）併為單一 Paylines，其餘原樣（表格仍顯示原始線數）
 function connCat(c){return c?(/線|[Ll]ines?/.test(c)?'Paylines':c):'';}
