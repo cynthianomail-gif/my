@@ -581,6 +581,8 @@ function renderStats(){
     .stat-add-sel:focus{outline:none;border-color:var(--accent,#e8748a);box-shadow:0 0 0 3px var(--accent-bg,#fdf0f2)}
     .stat-btn{padding:8px 16px;border:1.5px solid var(--accent,#e8748a);border-radius:10px;background:var(--accent-bg,#fdf0f2);color:var(--accent,#e8748a);font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;transition:background .15s}
     .stat-btn:hover{background:var(--accent,#e8748a);color:#fff}
+    .stat-btn.ghost{border-color:var(--border2,#d8d0c4);background:var(--white,#fff);color:var(--tx,#2d2720)}
+    .stat-btn.ghost:hover{background:var(--bg,#f5f3ef);color:var(--tx,#2d2720)}
     .stat-meta{margin-left:auto;font-size:11.5px;color:var(--tx3,#9e9085);font-weight:700}
     .stat-tcard{margin-top:0;overflow-x:auto}
     .stat-table{border-collapse:collapse;width:100%;min-width:520px}
@@ -614,6 +616,7 @@ function renderStats(){
         ${opts}
       </select>
       <button class="stat-btn" onclick="statAddMode()">＋ 新增模式</button>
+      <button class="stat-btn ghost" onclick="statExportCSV()">⬇ 匯出 CSV</button>
       <span class="stat-meta">已記錄 ${recCount} 款 · ${statModes.length} 個模式</span>
     </div>
     ${rows.length?table:empty}
@@ -653,6 +656,18 @@ function statDelMode(idx){
   statModes.splice(idx,1);
   G.forEach(g=>{if(g.stats&&typeof g.stats==='object'&&(m in g.stats))delete g.stats[m]});
   saveToStorage();markUnsaved();renderStats();
+}
+function statExportCSV(){
+  const rows=G.filter(g=>g.stats&&typeof g.stats==='object');
+  if(!rows.length){alert('還沒有任何統計記錄可匯出 😊');return}
+  rows.sort((a,b)=>statProvIdx(a.provider)-statProvIdx(b.provider)||a.name.localeCompare(b.name));
+  const esc=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const head=['遊戲名稱','廠商',...statModes];
+  const body=rows.map(g=>[g.name,g.provider,...statModes.map(m=>g.stats[m])].map(esc).join(','));
+  const csv='﻿'+[head.map(esc).join(','),...body].join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`slot-stats-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+  showToast('✅ 已匯出統計 CSV！');
 }
 
 // ── MODAL ──
