@@ -646,7 +646,13 @@ function renderStats(){
 
 // ── 排序 / 篩選 ──
 function statFv(id){const e=document.getElementById(id);return e?e.value:'';}
-function statMarkFilters(){['sf-prov','sf-vol','sf-conn','sf-status','sf-theme','sf-mode','sf-min','sf-max'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',!!e.value);});}
+function statMarkFilters(){
+  ['sf-prov','sf-vol','sf-conn','sf-status','sf-theme','sf-mode','sf-min','sf-max'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',!!e.value);});
+  let n=0;['sf-prov','sf-vol','sf-conn','sf-status','sf-theme'].forEach(id=>{if((document.getElementById(id)||{}).value)n++;});
+  if((document.getElementById('sf-mode')||{}).value)n++; // 數值範圍算一項
+  const p=document.getElementById('stat-fpanel');
+  if(p){p.classList.toggle('has-active',n>0);const c=document.getElementById('stat-fcount');if(c)c.textContent=n;}
+}
 function statFiltered(){
   const q=((document.getElementById('q')||{}).value||'').toLowerCase();
   const fp=statFv('sf-prov'),fvl=statFv('sf-vol'),fc=statFv('sf-conn'),fs=statFv('sf-status'),ft=statFv('sf-theme');
@@ -702,20 +708,35 @@ function statFilterBarHtml(){
   if(recorded.some(g=>themeCatMatch(g,'其他')))themeVals.push('其他');
   const opt=vals=>vals.map(v=>`<option value="${_statAttr(v)}">${_statEsc(v)}</option>`).join('');
   const modeOpts=statModes.map(m=>`<option value="${_statAttr(m)}">${_statEsc(statTrunc(m,14))}</option>`).join('');
-  return `<div class="stat-filt">
-    <select id="sf-prov" class="sf-sel" onchange="statRefresh()"><option value="">廠商</option>${opt(provVals)}</select>
-    <select id="sf-vol" class="sf-sel" onchange="statRefresh()"><option value="">波動</option>${opt(volVals)}</select>
-    <select id="sf-conn" class="sf-sel" onchange="statRefresh()"><option value="">連線</option>${opt(connVals)}</select>
-    <select id="sf-status" class="sf-sel" onchange="statRefresh()"><option value="">狀態</option>${opt(statusVals)}</select>
-    <select id="sf-theme" class="sf-sel" onchange="statRefresh()"><option value="">主題</option>${opt(themeVals)}</select>
-    <span class="stat-filt-range">
-      <select id="sf-mode" class="sf-sel" onchange="statRefresh()"><option value="">項目範圍</option>${modeOpts}</select>
-      <input id="sf-min" class="sf-num" type="number" inputmode="decimal" placeholder="min" oninput="statRefresh()">
-      <span class="sf-tilde">~</span>
-      <input id="sf-max" class="sf-num" type="number" inputmode="decimal" placeholder="max" oninput="statRefresh()">
-    </span>
-    <button class="stat-btn ghost sf-clr" onclick="statClearFilters()">清除篩選</button>
+  let collapsed='0';try{collapsed=localStorage.getItem('stat_fbar_collapsed')||'0';}catch(e){}
+  return `<div class="fpanel${collapsed==='1'?' collapsed':''}" id="stat-fpanel">
+    <div class="fhead" onclick="statToggleFilters()">
+      <span class="ic">🔍</span><span class="fhead-title">篩選器</span>
+      <span class="fcount" id="stat-fcount">0</span>
+      <span class="fhead-right">
+        <button class="fclr-mini" onclick="event.stopPropagation();statClearFilters()">清除</button>
+        <span class="fchev">▾</span>
+      </span>
+    </div>
+    <div class="fbody">
+      <select id="sf-prov" class="sf-sel" onchange="statRefresh()"><option value="">廠商</option>${opt(provVals)}</select>
+      <select id="sf-vol" class="sf-sel" onchange="statRefresh()"><option value="">波動</option>${opt(volVals)}</select>
+      <select id="sf-conn" class="sf-sel" onchange="statRefresh()"><option value="">連線</option>${opt(connVals)}</select>
+      <select id="sf-status" class="sf-sel" onchange="statRefresh()"><option value="">狀態</option>${opt(statusVals)}</select>
+      <select id="sf-theme" class="sf-sel" onchange="statRefresh()"><option value="">主題</option>${opt(themeVals)}</select>
+      <span class="stat-filt-range">
+        <select id="sf-mode" class="sf-sel" onchange="statRefresh()"><option value="">項目範圍</option>${modeOpts}</select>
+        <input id="sf-min" class="sf-num" type="number" inputmode="decimal" placeholder="min" oninput="statRefresh()">
+        <span class="sf-tilde">~</span>
+        <input id="sf-max" class="sf-num" type="number" inputmode="decimal" placeholder="max" oninput="statRefresh()">
+      </span>
+    </div>
   </div>`;
+}
+function statToggleFilters(){
+  const p=document.getElementById('stat-fpanel');if(!p)return;
+  p.classList.toggle('collapsed');
+  try{localStorage.setItem('stat_fbar_collapsed',p.classList.contains('collapsed')?'1':'0');}catch(e){}
 }
 function statTableHtml(rows){
   if(!rows.length)return `<div class="stat-empty">🔍 沒有符合篩選條件的記錄</div>`;
