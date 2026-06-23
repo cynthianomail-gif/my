@@ -730,6 +730,7 @@ function statFilterBarHtml(){
         <span class="sf-tilde">~</span>
         <input id="sf-max" class="sf-num" type="number" inputmode="decimal" placeholder="max" oninput="statRefresh()">
       </span>
+      <button class="fclr" onclick="statClearFilters()">✕ 清除篩選</button>
     </div>
   </div>`;
 }
