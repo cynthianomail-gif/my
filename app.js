@@ -41,6 +41,7 @@ async function syncFromGitHub(){
       _DB.ts=remote.ts;_DB.g=remote.g;_DB.nid=remote.nid;
       saveToStorage();
       if(typeof renderMain==='function')renderMain();
+      if(typeof populateFilters==='function')populateFilters();
       console.log('[syncFromGitHub] 已從 GitHub 同步最新資料 (ts:'+remote.ts+')');
     }else{
       console.log('[syncFromGitHub] 本地資料已是最新');
@@ -155,6 +156,18 @@ const FEAT_ZH={'Cascading':'連爆消除','Multiplier':'加成倍數','Wilds':'W
 function featZh(f){return FEAT_ZH[f]||f}
 function hasFeat(g,f){const zh=featZh(f);return(g.feat||[]).some(t=>t===f||featZh(t)===zh||t===zh);}
 
+// ── 主題：優先用 g.theme，否則從 sum 開頭的「…主題」自動萃取 ──
+const _THEME_PROVS=["Pragmatic Play","Pragmatic","Hacksaw Gaming","Hacksaw","NoLimit City","Nolimit City","Play'n GO","ELK Studios","ELK","Shady Lady"];
+function themeOf(g){
+  if(g&&g.theme)return g.theme;
+  const s=(g&&g.sum)||'';const i=s.indexOf('主題');
+  if(i<0)return '';
+  let pre=s.slice(0,i).split(/[。，]/).pop().trim();
+  for(const p of _THEME_PROVS){if(pre.startsWith(p)){pre=pre.slice(p.length).trim();break;}}
+  return pre.replace(/^的\s*/,'').replace(/[的\s]+$/,'').trim();
+}
+function fv(id){const e=document.getElementById(id);return e?e.value:'';}
+
 function gameLink(g){
   if(g.link&&g.link!=='https://www.bigwinboard.com/')return g.link;
   const ps={'Hacksaw Gaming':'hacksaw-gaming','NoLimit City':'nolimit-city','ELK Studios':'elk-studios',"Play'n GO":'playn-go','Shady Lady':'shady-lady','Pragmatic Play':'pragmatic-play'}[g.provider]||'';
@@ -165,9 +178,23 @@ function gameLink(g){
 
 function filt(pf=null){
   const q=(document.getElementById('q')||{}).value?.toLowerCase()||'';
-  let r=G.filter(g=>(pf?g.provider===pf:true)&&(!q||g.name.toLowerCase().includes(q)||g.provider.toLowerCase().includes(q)));
+  const fProv=fv('f-prov'),fConn=fv('f-conn'),fGrid=fv('f-grid'),fVol=fv('f-vol'),fSt=fv('f-status'),fTheme=fv('f-theme'),dFrom=fv('f-date-from'),dTo=fv('f-date-to');
+  let r=G.filter(g=>{
+    if(pf&&g.provider!==pf)return false;
+    if(q&&!(g.name.toLowerCase().includes(q)||g.provider.toLowerCase().includes(q)||(g.sum||'').toLowerCase().includes(q)))return false;
+    if(fProv&&g.provider!==fProv)return false;
+    if(fConn&&(g.conn||'')!==fConn)return false;
+    if(fGrid&&(g.grid||'')!==fGrid)return false;
+    if(fVol&&(g.vol||'')!==fVol)return false;
+    if(fSt&&(g.status||'庫存')!==fSt)return false;
+    if(fTheme&&themeOf(g)!==fTheme)return false;
+    if(dFrom&&(g.releaseDate||'')<dFrom)return false;
+    if(dTo&&(g.releaseDate||'')>dTo)return false;
+    return true;
+  });
   const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
   r.sort((a,b)=>{let av=a[ss.k]||'',bv=b[ss.k]||'';
+    if(ss.k==='theme'){av=themeOf(a);bv=themeOf(b)}
     if(ss.k==='rtp'||ss.k==='maxwin'){av=parseFloat(av)||0;bv=parseFloat(bv)||0}
     if(ss.k==='vol'){av=VOL_ORD[av]||0;bv=VOL_ORD[bv]||0}
     if(ss.k==='grid'){const p=v=>{const m=v.match(/(\d+)[×x](\d+)/);return m?parseInt(m[1])*100+parseInt(m[2]):0};av=p(av);bv=p(bv)}
@@ -176,12 +203,35 @@ function filt(pf=null){
   return r;
 }
 
+// ── 篩選列：填入各欄唯一值 + 清除 ──
+function populateFilters(){
+  const cfg=[['f-prov','provider','全部廠商'],['f-conn','conn','全部連線'],['f-grid','grid','全部盤面'],['f-vol','vol','全部波動'],['f-status','status','全部狀態'],['f-theme','__theme','全部主題']];
+  const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
+  cfg.forEach(([id,key,allLbl])=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const prev=sel.value;
+    let vals;
+    if(key==='__theme')vals=[...new Set(G.map(g=>themeOf(g)).filter(Boolean))];
+    else if(key==='status')vals=[...new Set(G.map(g=>g.status||'庫存').filter(Boolean))];
+    else vals=[...new Set(G.map(g=>g[key]||'').filter(Boolean))];
+    if(id==='f-vol')vals.sort((a,b)=>(VOL_ORD[a]||9)-(VOL_ORD[b]||9));
+    else vals.sort((a,b)=>String(a).localeCompare(String(b),'zh-Hant'));
+    sel.innerHTML='<option value="">'+allLbl+'</option>'+vals.map(v=>'<option>'+v+'</option>').join('');
+    if(prev&&vals.includes(prev))sel.value=prev;
+  });
+}
+function clearFilters(){
+  ['f-prov','f-conn','f-grid','f-vol','f-status','f-theme','f-date-from','f-date-to','q'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  renderCurrent();
+}
+
 function rowHtml(g,i){
   const ft=(g.feat||[]).map(f=>`<span class="ftag">${f}</span>`).join('');
   return`<tr data-id="${g.id}" style="animation-delay:${i*.022}s" class="${g.id===selId?'sel':''}" onclick="openPanel(${g.id})">
     <td>${imgWithFallback(g.img, g.name, g.provider, 't-thumb')}</td>
     <td><div class="t-name">${g.name}</div><div class="t-sub">${g.sum?g.sum.slice(0,55)+'…':''}</div></td>
     <td><span class="badge ${bcl(g.provider)}">${g.provider}</span></td>
+    <td class="t-theme">${themeOf(g)?`<span class="thm" title="${themeOf(g)}">${themeOf(g)}</span>`:'—'}</td>
     <td style="color:var(--tx3);font-size:11px;font-weight:700;white-space:nowrap">${fd(g.releaseDate)}</td>
     <td>${g.conn?`<span class="conn ${ccl(g.conn)}">${g.conn}</span>`:'—'}</td>
     <td class="grd">${g.grid||'—'}</td>
@@ -211,7 +261,7 @@ function renderMain(){
   let html='',last='';
   list.forEach((g,i)=>{
     const m=ml(g.releaseDate);
-    if(m!==last){last=m;html+=`<tr class="mdiv"><td colspan="11" style="padding:14px 14px 4px"><span class="mlbl">📅 ${m}</span></td></tr>`}
+    if(m!==last){last=m;html+=`<tr class="mdiv"><td colspan="12" style="padding:14px 14px 4px"><span class="mlbl">📅 ${m}</span></td></tr>`}
     html+=rowHtml(g,i);
   });
   tb.innerHTML=html;
@@ -333,6 +383,7 @@ function renderProv(pname){
   const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
   const pG=G.filter(g=>g.provider===pname&&(!q||g.name.toLowerCase().includes(q)||g.sum?.toLowerCase().includes(q)));
   pG.sort((a,b)=>{let av=a[ss.k]||'',bv=b[ss.k]||'';
+    if(ss.k==='theme'){av=themeOf(a);bv=themeOf(b)}
     if(ss.k==='maxwin'){av=parseFloat(av)||0;bv=parseFloat(bv)||0}
     if(ss.k==='vol'){av=VOL_ORD[av]||0;bv=VOL_ORD[bv]||0}
     if(ss.k==='grid'){const p=v=>{const m=v.match(/(\d+)[×x](\d+)/);return m?parseInt(m[1])*100+parseInt(m[2]):0};av=p(av);bv=p(bv)}
@@ -347,6 +398,7 @@ function renderProv(pname){
     return`<tr style="animation-delay:${i*.03}s;cursor:pointer" onclick="openPanel(${g.id})">
       <td>${imgWithFallback(g.img,g.name,g.provider,'t-thumb')}</td>
       <td><div class="t-name">${g.name}</div><div class="t-sub">${g.sum?g.sum.slice(0,50)+'…':''}</div></td>
+      <td class="t-theme">${themeOf(g)?`<span class="thm" title="${themeOf(g)}">${themeOf(g)}</span>`:'—'}</td>
       <td style="color:var(--tx3);font-size:11px;font-weight:700;white-space:nowrap">${fd(g.releaseDate)}</td>
       <td>${g.conn?`<span class="conn ${ccl(g.conn)}">${g.conn}</span>`:'—'}</td>
       <td class="grd">${g.grid||'—'}</td>
@@ -373,7 +425,7 @@ function renderProv(pname){
       <div class="stat s3"><div class="n">${topMw}</div><div class="l">最高 Max Win</div></div>
     </div>
     <div class="tcard" style="margin-top:0"><table>
-      <thead><tr><th style="width:52px"></th><th onclick="sort('name')">遊戲名稱</th><th onclick="sort('releaseDate')">發布日期</th><th onclick="sort('conn')">連線</th><th onclick="sort('grid')">盤面</th><th onclick="sort('maxwin')">Max Win</th><th onclick="sort('vol')">波動</th><th onclick="sort('status')">狀態</th><th>功能</th><th>Demo</th></tr></thead>
+      <thead><tr><th style="width:52px"></th><th onclick="sort('name')">遊戲名稱</th><th onclick="sort('theme')">主題</th><th onclick="sort('releaseDate')">發布日期</th><th onclick="sort('conn')">連線</th><th onclick="sort('grid')">盤面</th><th onclick="sort('maxwin')">Max Win</th><th onclick="sort('vol')">波動</th><th onclick="sort('status')">狀態</th><th>功能</th><th>Demo</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
   `;
@@ -571,5 +623,6 @@ function showToast(msg){
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
 document.getElementById('modal-ov').addEventListener('click',e=>{if(e.target===document.getElementById('modal-ov'))closeModal()});
 renderMain();
+populateFilters();
 // 頁面載入後自動同步 GitHub 最新資料
 syncFromGitHub();

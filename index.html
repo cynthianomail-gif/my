@@ -62,12 +62,32 @@
         <div class="stat s0"><div class="n" id="st-tot">140</div><div class="l">遊戲總數</div></div>
         <div class="stat s1"><div class="n" id="st-mo">24</div><div class="l">本月新增</div></div>
       </div>
+      <style>
+      .fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:10px 12px;background:var(--bg2,#f0ece6);border-radius:12px}
+      .fbar .fsel,.fbar .finp{padding:6px 10px;border:1.5px solid var(--bg3,#dcd6cc);border-radius:8px;background:#fff;font-size:12px;font-family:inherit;color:var(--tx,#3a332b);cursor:pointer;max-width:170px}
+      .fbar .fdate{font-size:12px;color:var(--tx2,#8a8178);display:flex;align-items:center;gap:5px}
+      .fbar .finp{cursor:text;max-width:140px}
+      .fbar .fclr{padding:6px 13px;border:1.5px solid #f0c8c8;background:#fff6f6;color:#d0405a;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;margin-left:auto}
+      .fbar .fclr:hover{background:#ffeaea}
+      td.t-theme .thm{display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;font-size:12px;color:var(--tx2,#8a8178);background:var(--bg2,#f3efe9);padding:2px 8px;border-radius:6px}
+      </style>
+      <div class="fbar" id="fbar">
+        <select id="f-prov" class="fsel" onchange="renderCurrent()"></select>
+        <select id="f-conn" class="fsel" onchange="renderCurrent()"></select>
+        <select id="f-grid" class="fsel" onchange="renderCurrent()"></select>
+        <select id="f-vol" class="fsel" onchange="renderCurrent()"></select>
+        <select id="f-status" class="fsel" onchange="renderCurrent()"></select>
+        <select id="f-theme" class="fsel" onchange="renderCurrent()"></select>
+        <span class="fdate">📅 <input type="date" id="f-date-from" class="finp" onchange="renderCurrent()"> ～ <input type="date" id="f-date-to" class="finp" onchange="renderCurrent()"></span>
+        <button class="fclr" onclick="clearFilters()">✕ 清除篩選</button>
+      </div>
       <div class="tcard">
         <table>
           <thead><tr>
             <th style="width:52px"></th>
             <th onclick="sort('name')">遊戲名稱</th>
             <th onclick="sort('provider')">廠商</th>
+            <th onclick="sort('theme')">主題</th>
             <th onclick="sort('releaseDate')">日期</th>
             <th onclick="sort('conn')">連線</th><th onclick="sort('grid')">盤面</th>
             <th onclick="sort('maxwin')">Max Win</th>
