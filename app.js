@@ -172,6 +172,7 @@ const THEME_CATS=[
   {label:'神話/古文明', re:/神話|希臘|北歐|羅馬|埃及|木乃伊|圖坦卡門|歐西里斯|拉神|印加|阿茲特克|馬丘比丘|雅典娜|奧林帕斯|阿瑞斯|命運女神|冥|神曲|維京|長矛之王|天鵝座|潘朵拉|牛神|戰神/},
   {label:'龍/亞洲', re:/龍|亞洲|東方|中國|武士|廟|財神|貓熊|蟒蛇|圓環/},
   {label:'動物', re:/動物|猴|猩猩|猿|熊|豬|貓|虎|河狸|鼴鼠|蛇|草原|野生|大腳怪|金剛|長頸鹿|蜂|獅|鬥牛|野馬/},
+  {label:'人物', re:/公主|女王|國王|王后|奶奶|主角|搭檔|警察|英雄|教授|醫生|將軍|名人|前女友|傳教士|政治人物|小丑|騎士/},
   {label:'恐怖/萬聖', re:/恐怖|吸血鬼|鬼|骷髏|惡魔|邪惡|怪獸|死神|死亡|血腥|屠夫|萬聖|療養院|哥德|地獄|冥界|越獄|監獄|犯罪|末日|黑暗/},
   {label:'水果/糖果', re:/糖果|水果|甜點|甜蜜|莓果|蜂巢|蜂蜜|爆炸|爆破/},
   {label:'西部/淘金', re:/西部|牛仔|賞金|狩獵|淘金|礦坑|採礦|金礦/},
@@ -181,7 +182,7 @@ const THEME_CATS=[
   {label:'運動', re:/足球|賽車|競速|鬥牛|世界盃/},
   {label:'諷刺/黑色幽默', re:/諷刺|黑色幽默|政治|詐騙|陰謀|大麻/},
 ];
-function themeCatMatch(g,label){const t=themeOf(g);if(!t)return false;if(label==='其他')return !THEME_CATS.some(c=>c.re.test(t));const c=THEME_CATS.find(x=>x.label===label);return c?c.re.test(t):false;}
+function themeCatMatch(g,label){const t=themeOf(g);if(!t)return false;if(label==='其他')return !THEME_CATS.some(c=>c.re.test(t)||c.label===t);const c=THEME_CATS.find(x=>x.label===label);return c?(t===label||c.re.test(t)):false;}
 function fv(id){const e=document.getElementById(id);return e?e.value:'';}
 // 連線分類：各種線數類（X 線 / Lines / Paylines）併為單一 Paylines，其餘原樣（表格仍顯示原始線數）
 function connCat(c){return c?(/線|[Ll]ines?/.test(c)?'Paylines':c):'';}
@@ -241,7 +242,7 @@ function populateFilters(){
   const th=document.getElementById('f-theme');
   if(th&&th.tagName==='SELECT'){
     const prev=th.value;
-    const cats=THEME_CATS.map(c=>({label:c.label,n:G.filter(g=>{const t=themeOf(g);return t&&c.re.test(t);}).length})).filter(c=>c.n>0);
+    const cats=THEME_CATS.map(c=>({label:c.label,n:G.filter(g=>themeCatMatch(g,c.label)).length})).filter(c=>c.n>0);
     const otherN=G.filter(g=>themeCatMatch(g,'其他')).length;
     let html='<option value="">全部主題</option>';
     cats.forEach(c=>html+='<option value="'+c.label+'">'+c.label+' ('+c.n+')</option>');
@@ -498,13 +499,18 @@ function goPage(name){
 }
 
 // ── MODAL ──
+// 編輯表單「主題」下拉：（自動依摘要）+ 常用分類 + 其他
+function fillModalTheme(){
+  const s=document.getElementById('m-theme');if(!s)return;
+  s.innerHTML='<option value="">（自動依摘要）</option>'+THEME_CATS.map(c=>'<option value="'+c.label+'">'+c.label+'</option>').join('')+'<option value="其他">其他</option>';
+}
 function openModal(id=null){
-  eid=id;clearMod();
+  eid=id;clearMod();fillModalTheme();
   document.getElementById('m-title').textContent=id?'✏️ 編輯遊戲':'＋ 新增遊戲 ✨';
   if(id){
     const g=G.find(x=>x.id===id);
     if(g){
-      const m={name:g.name,prov:g.provider,date:g.releaseDate,conn:g.conn,grid:g.grid,rtp:g.rtp,mw:g.maxwin,vol:g.vol,status:g.status||'',bet:g.bet,img:g.img,link:g.link,sum:g.sum,rules:g.rules,
+      const m={name:g.name,prov:g.provider,date:g.releaseDate,conn:g.conn,grid:g.grid,rtp:g.rtp,mw:g.maxwin,vol:g.vol,status:g.status||'',theme:g.theme||'',bet:g.bet,img:g.img,link:g.link,sum:g.sum,rules:g.rules,
         mechs:g.mechs?JSON.stringify(g.mechs,null,2):''};
       Object.entries(m).forEach(([k,v])=>{const el=document.getElementById('m-'+k);if(el)el.value=v||''});
       document.querySelectorAll('.chks input[type=checkbox]').forEach(c=>c.checked=(g.feat||[]).some(t=>t===c.value||featZh(t)===c.value));
@@ -514,7 +520,7 @@ function openModal(id=null){
 }
 function closeModal(){document.getElementById('modal-ov').classList.remove('open');eid=null}
 function clearMod(){
-  ['m-name','m-prov','m-date','m-conn','m-grid','m-rtp','m-mw','m-vol','m-status','m-bet','m-img','m-link','m-sum','m-rules','m-mechs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  ['m-name','m-prov','m-date','m-conn','m-grid','m-rtp','m-mw','m-vol','m-status','m-theme','m-bet','m-img','m-link','m-sum','m-rules','m-mechs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.querySelectorAll('.chks input[type=checkbox]').forEach(c=>c.checked=false);
 }
 function saveGame(){
@@ -525,7 +531,7 @@ function saveGame(){
   const d={name,provider:prov,releaseDate:document.getElementById('m-date').value,
     conn:document.getElementById('m-conn').value,grid:document.getElementById('m-grid').value.trim(),
     rtp:document.getElementById('m-rtp').value.trim(),maxwin:document.getElementById('m-mw').value.trim(),
-    vol:document.getElementById('m-vol').value,status:document.getElementById('m-status').value,bet:document.getElementById('m-bet').value.trim(),
+    vol:document.getElementById('m-vol').value,status:document.getElementById('m-status').value,theme:document.getElementById('m-theme').value,bet:document.getElementById('m-bet').value.trim(),
     img:document.getElementById('m-img').value.trim(),link:document.getElementById('m-link').value.trim(),
     sum:document.getElementById('m-sum').value.trim(),rules:document.getElementById('m-rules').value.trim(),
     mechs,feat:[...document.querySelectorAll('.chks input[type=checkbox]:checked')].map(c=>c.value)};
