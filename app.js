@@ -166,6 +166,22 @@ function themeOf(g){
   for(const p of _THEME_PROVS){if(pre.startsWith(p)){pre=pre.slice(p.length).trim();break;}}
   return pre.replace(/^的\s*/,'').replace(/[的\s]+$/,'').trim();
 }
+// 常用主題分類：依主題關鍵字歸類；可多重命中，篩選為 OR；「其他」= 有主題但不屬任何分類
+const THEME_CATS=[
+  {label:'海洋/釣魚', re:/海|釣魚|釣|金魚|鯊|深海|船|亞特蘭提斯|魔鬼魚|Tuna|Marlin|Tiki/i},
+  {label:'神話/古文明', re:/神話|希臘|北歐|羅馬|埃及|木乃伊|圖坦卡門|歐西里斯|拉神|印加|阿茲特克|馬丘比丘|雅典娜|奧林帕斯|阿瑞斯|命運女神|冥|神曲|維京|長矛之王|天鵝座|潘朵拉|牛神|戰神/},
+  {label:'龍/亞洲', re:/龍|亞洲|東方|中國|武士|廟|財神|貓熊|蟒蛇|圓環/},
+  {label:'動物', re:/動物|猴|猩猩|猿|熊|豬|貓|虎|河狸|鼴鼠|蛇|草原|野生|大腳怪|金剛|長頸鹿|蜂|獅|鬥牛|野馬/},
+  {label:'恐怖/萬聖', re:/恐怖|吸血鬼|鬼|骷髏|惡魔|邪惡|怪獸|死神|死亡|血腥|屠夫|萬聖|療養院|哥德|地獄|冥界|越獄|監獄|犯罪|末日|黑暗/},
+  {label:'水果/糖果', re:/糖果|水果|甜點|甜蜜|莓果|蜂巢|蜂蜜|爆炸|爆破/},
+  {label:'西部/淘金', re:/西部|牛仔|賞金|狩獵|淘金|礦坑|採礦|金礦/},
+  {label:'太空/科幻', re:/太空|宇宙|賽博|蒸汽朋克|天空城|科技|未來/},
+  {label:'節慶', re:/聖誕|萬聖|復活節|嘉年華|節日|節慶|購物節|黑色星期五/},
+  {label:'賭場/Vegas', re:/賭場|拉斯維加斯|Vegas|撲克|骰子|娛樂城|霓虹|鑽石|珠寶|度假村|夜店/i},
+  {label:'運動', re:/足球|賽車|競速|鬥牛|世界盃/},
+  {label:'諷刺/黑色幽默', re:/諷刺|黑色幽默|政治|詐騙|陰謀|大麻/},
+];
+function themeCatMatch(g,label){const t=themeOf(g);if(!t)return false;if(label==='其他')return !THEME_CATS.some(c=>c.re.test(t));const c=THEME_CATS.find(x=>x.label===label);return c?c.re.test(t):false;}
 function fv(id){const e=document.getElementById(id);return e?e.value:'';}
 // 連線分類：各種線數類（X 線 / Lines / Paylines）併為單一 Paylines，其餘原樣（表格仍顯示原始線數）
 function connCat(c){return c?(/線|[Ll]ines?/.test(c)?'Paylines':c):'';}
@@ -189,7 +205,7 @@ function filt(pf=null){
     if(fGrid&&(g.grid||'')!==fGrid)return false;
     if(fVol&&(g.vol||'')!==fVol)return false;
     if(fSt&&(g.status||'庫存')!==fSt)return false;
-    if(fTheme&&!themeOf(g).toLowerCase().includes(fTheme.toLowerCase()))return false;
+    if(fTheme&&!themeCatMatch(g,fTheme))return false;
     if(dFrom&&(g.releaseDate||'')<dFrom)return false;
     if(dTo&&(g.releaseDate||'')>dTo)return false;
     return true;
@@ -221,6 +237,18 @@ function populateFilters(){
     sel.innerHTML='<option value="">'+allLbl+'</option>'+vals.map(v=>'<option>'+v+'</option>').join('');
     if(prev&&vals.includes(prev))sel.value=prev;
   });
+  // 主題：常用分類下拉（含筆數）+ 其他
+  const th=document.getElementById('f-theme');
+  if(th&&th.tagName==='SELECT'){
+    const prev=th.value;
+    const cats=THEME_CATS.map(c=>({label:c.label,n:G.filter(g=>{const t=themeOf(g);return t&&c.re.test(t);}).length})).filter(c=>c.n>0);
+    const otherN=G.filter(g=>themeCatMatch(g,'其他')).length;
+    let html='<option value="">全部主題</option>';
+    cats.forEach(c=>html+='<option value="'+c.label+'">'+c.label+' ('+c.n+')</option>');
+    if(otherN>0)html+='<option value="其他">其他 ('+otherN+')</option>';
+    th.innerHTML=html;
+    if(prev)th.value=prev;
+  }
 }
 function clearFilters(){
   ['f-prov','f-conn','f-grid','f-vol','f-status','f-theme','f-date-from','f-date-to','q'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -235,7 +263,7 @@ function rowHtml(g,i){
     <td><span class="badge ${bcl(g.provider)}">${g.provider}</span></td>
     <td class="t-theme">${themeOf(g)?`<span class="thm" title="${themeOf(g)}">${themeOf(g)}</span>`:'—'}</td>
     <td style="color:var(--tx3);font-size:11px;font-weight:700;white-space:nowrap">${fd(g.releaseDate)}</td>
-    <td>${g.conn?`<span class="conn ${ccl(g.conn)}">${g.conn}</span>`:'—'}</td>
+    <td>${g.conn?`<span class="conn ${ccl(connCat(g.conn))}">${connCat(g.conn)}</span>`:'—'}</td>
     <td class="grd">${g.grid||'—'}</td>
     <td class="mxw">${g.maxwin?'x'+Number(g.maxwin).toLocaleString():'—'}</td>
     <td>${g.vol?`<span class="vbadge ${vcl(g.vol)}">${g.vol}</span>`:'—'}</td>
@@ -331,7 +359,7 @@ function openPanel(id){
         <table class="spec-tbl">
           <tr><td>廠商</td><td><span class="badge ${pi.bc}">${g.provider}</span></td></tr>
           <tr><td>發布日期</td><td>${fd(g.releaseDate)}</td></tr>
-          <tr><td>連線類型</td><td>${g.conn?`<span class="conn ${ccl(g.conn)}">${g.conn}</span>`:'—'}</td></tr>
+          <tr><td>連線類型</td><td>${g.conn?`<span class="conn ${ccl(connCat(g.conn))}">${connCat(g.conn)}</span>`:'—'}</td></tr>
           <tr><td>盤面</td><td><span class="grd">${g.grid||'—'}</span></td></tr>
           <tr><td>波動度</td><td>${g.vol?`<span class="vbadge ${vcl(g.vol)}">${g.vol}</span>`:'—'}</td></tr>
           <tr><td>下注範圍</td><td style="font-weight:800">${g.bet||'—'}</td></tr>
@@ -402,7 +430,7 @@ function renderProv(pname){
       <td><div class="t-name">${g.name}</div><div class="t-sub">${g.sum?g.sum.slice(0,50)+'…':''}</div></td>
       <td class="t-theme">${themeOf(g)?`<span class="thm" title="${themeOf(g)}">${themeOf(g)}</span>`:'—'}</td>
       <td style="color:var(--tx3);font-size:11px;font-weight:700;white-space:nowrap">${fd(g.releaseDate)}</td>
-      <td>${g.conn?`<span class="conn ${ccl(g.conn)}">${g.conn}</span>`:'—'}</td>
+      <td>${g.conn?`<span class="conn ${ccl(connCat(g.conn))}">${connCat(g.conn)}</span>`:'—'}</td>
       <td class="grd">${g.grid||'—'}</td>
       <td class="mxw">${g.maxwin?'x'+Number(g.maxwin).toLocaleString():'—'}</td>
       <td>${g.vol?`<span class="vbadge ${vcl(g.vol)}">${g.vol}</span>`:'—'}</td>
