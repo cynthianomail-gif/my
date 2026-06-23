@@ -5,6 +5,8 @@ const GH_FILE='data.js';
 // 從 data.js 載入遊戲資料
 let G = (_DB && _DB.g) ? _DB.g.slice() : [];
 let nid = (_DB && _DB.nid) ? _DB.nid : 1;
+// 統計模式欄位（全域共用）：使用者自訂，舊資料無此欄時補預設
+let statModes = (_DB && _DB.statModes && _DB.statModes.length) ? _DB.statModes.slice() : ['NG 平均得分倍','FG 平均得分倍'];
 let eid=null, selId=null, cur='all', ss={k:'releaseDate',d:-1};
 
 // ── 載入資料（data.js 優先，localStorage 補充本地未推送的變更）──
@@ -21,6 +23,7 @@ let eid=null, selId=null, cur='all', ss={k:'releaseDate',d:-1};
     const extra=G.filter(g=>!lsIds.has(g.id));
     G=[...lsD.g,...extra];
     nid=Math.max(lsD.nid||0,nid);
+    if(lsD.statModes&&lsD.statModes.length)statModes=lsD.statModes.slice();
   }
   // 若 data.js 比較新（剛從 GitHub 拉回），保留 data.js 的 G 不動
 })();
@@ -38,11 +41,13 @@ async function syncFromGitHub(){
     if(remote.ts>localTs){
       G=remote.g.slice();
       nid=Math.max(remote.nid||0,nid);
-      _DB.ts=remote.ts;_DB.g=remote.g;_DB.nid=remote.nid;
+      if(remote.statModes&&remote.statModes.length)statModes=remote.statModes.slice();
+      _DB.ts=remote.ts;_DB.g=remote.g;_DB.nid=remote.nid;_DB.statModes=remote.statModes;
       saveToStorage();
       if(typeof renderMain==='function')renderMain();
       if(typeof populateFilters==='function')populateFilters();
       if(typeof updateFilterUI==='function')updateFilterUI();
+      if(typeof renderStats==='function'&&cur==='stats')renderStats();
       console.log('[syncFromGitHub] 已從 GitHub 同步最新資料 (ts:'+remote.ts+')');
     }else{
       console.log('[syncFromGitHub] 本地資料已是最新');
@@ -64,7 +69,7 @@ const BC={'Hacksaw Gaming':'b-hk','NoLimit City':'b-nl','ELK Studios':'b-elk',"P
 const VC={'Extreme':'ve','High':'vh','Medium-High':'vm','Medium':'vm','Medium-Low':'vml','Low':'vl'};
 
 
-function saveToStorage(){try{localStorage.setItem('slotdb_v1',JSON.stringify({g:G,nid,ts:Date.now()}));}catch(e){}}
+function saveToStorage(){try{localStorage.setItem('slotdb_v1',JSON.stringify({g:G,nid,ts:Date.now(),statModes}));}catch(e){}}
 
 // ── 清理 localStorage 舊版 weserv proxy 前綴，還原成乾淨的 bigwinboard URL ──
 G.forEach(g=>{
@@ -307,6 +312,7 @@ function rowHtml(g,i){
 function renderCurrent(){
   const provMap={hacksaw:'Hacksaw Gaming',nolimit:'NoLimit City',elk:'ELK Studios',playngo:"Play'n GO",shady:'Shady Lady',prag:'Pragmatic Play'};
   if(cur==='all')renderMain();
+  else if(cur==='stats')renderStats();
   else if(provMap[cur])renderProv(provMap[cur]);
   updateFilterUI();
 }
@@ -520,10 +526,133 @@ function goPage(name){
   document.getElementById('pg-'+name).classList.add('on');
   document.getElementById('nb-'+name).classList.add('on');
   cur=name;
-  const titles={all:'全部遊戲 🎮',hacksaw:'Hacksaw Gaming',nolimit:'NoLimit City',elk:'ELK Studios',playngo:"Play'n GO",shady:'Shady Lady','prag':'Pragmatic Play'};
+  const titles={all:'全部遊戲 🎮',hacksaw:'Hacksaw Gaming',nolimit:'NoLimit City',elk:'ELK Studios',playngo:"Play'n GO",shady:'Shady Lady','prag':'Pragmatic Play',stats:'📊 統計數據'};
   document.getElementById('page-h').textContent=titles[name]||name;
-  if(name!=='all'){const pm={hacksaw:'Hacksaw Gaming',nolimit:'NoLimit City',elk:'ELK Studios',playngo:"Play'n GO",shady:'Shady Lady','prag':'Pragmatic Play'};renderProv(pm[name])}
+  const pm={hacksaw:'Hacksaw Gaming',nolimit:'NoLimit City',elk:'ELK Studios',playngo:"Play'n GO",shady:'Shady Lady','prag':'Pragmatic Play'};
+  if(name==='stats')renderStats();
+  else if(pm[name])renderProv(pm[name]);
   closePanel();closeMobMenu();
+}
+
+// ── 統計數據分頁 ──
+const STAT_PROV_ORDER=['Hacksaw Gaming','NoLimit City','ELK Studios',"Play'n GO",'Shady Lady','Pragmatic Play'];
+function _statEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _statAttr(s){return _statEsc(s).replace(/"/g,'&quot;');}
+function statProvIdx(p){const i=STAT_PROV_ORDER.indexOf(p);return i<0?99:i;}
+
+function renderStats(){
+  const el=document.getElementById('pg-stats');if(!el)return;
+  const q=((document.getElementById('q')||{}).value||'').toLowerCase();
+  // 已記錄的遊戲（有 stats 物件即出現在表格中，數值可為空）
+  let rows=G.filter(g=>g.stats&&typeof g.stats==='object');
+  if(q)rows=rows.filter(g=>g.name.toLowerCase().includes(q)||(g.provider||'').toLowerCase().includes(q));
+  rows.sort((a,b)=>statProvIdx(a.provider)-statProvIdx(b.provider)||a.name.localeCompare(b.name));
+  // 尚未記錄的遊戲 → 新增記錄下拉（依廠商分組）
+  const avail=G.filter(g=>!(g.stats&&typeof g.stats==='object'));
+  const byProv={};avail.forEach(g=>{(byProv[g.provider]=byProv[g.provider]||[]).push(g)});
+  const provs=[...STAT_PROV_ORDER.filter(p=>byProv[p]),...Object.keys(byProv).filter(p=>!STAT_PROV_ORDER.includes(p))];
+  const opts=provs.map(p=>`<optgroup label="${_statAttr(p)}">`+byProv[p].sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<option value="${g.id}">${_statEsc(g.name)}</option>`).join('')+`</optgroup>`).join('');
+  const recCount=G.filter(g=>g.stats&&typeof g.stats==='object').length;
+
+  const modeCols=statModes.map((m,i)=>`<th class="stat-mh"><span class="stat-mh-name" title="${_statAttr(m)}">${_statEsc(m)}</span><span class="stat-mh-x" title="刪除此模式欄位" onclick="statDelMode(${i})">×</span></th>`).join('');
+  const bodyRows=rows.map(g=>{
+    const cells=statModes.map((m,i)=>{
+      const v=g.stats[m];
+      return `<td class="stat-cell"><input class="stat-inp" type="text" inputmode="decimal" value="${v==null?'':_statAttr(String(v))}" placeholder="＋" onchange="statSetVal(${g.id},${i},this.value)"></td>`;
+    }).join('');
+    return `<tr>
+      <td class="stat-game"><div class="stat-game-cell">${imgWithFallback(g.img,g.name,g.provider,'t-thumb')}<div class="stat-game-txt"><div class="t-name">${_statEsc(g.name)}</div><div class="t-sub">${_statEsc(g.provider||'')}</div></div></div></td>
+      ${cells}
+      <td class="stat-del"><button class="stat-del-btn" title="刪除此記錄" onclick="statDelRow(${g.id})">🗑️</button></td>
+    </tr>`;
+  }).join('');
+
+  const empty=`<div class="stat-empty">📊 還沒有任何統計記錄<br><span>從上方「＋ 新增記錄」選一款遊戲開始填寫</span></div>`;
+  const table=`<div class="tcard stat-tcard"><table class="stat-table">
+      <thead><tr><th class="stat-game-h">遊戲</th>${modeCols}<th class="stat-del-h"></th></tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table></div>`;
+
+  el.innerHTML=`
+  <style>
+    .stat-page{animation:fadeIn .3s}
+    .stat-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+    .stat-add-sel{padding:8px 14px;border:1.5px solid var(--border2,#d8d0c4);border-radius:10px;background:var(--white,#fff);font-size:12.5px;font-family:inherit;font-weight:700;color:var(--tx,#2d2720);cursor:pointer;max-width:260px}
+    .stat-add-sel:focus{outline:none;border-color:var(--accent,#e8748a);box-shadow:0 0 0 3px var(--accent-bg,#fdf0f2)}
+    .stat-btn{padding:8px 16px;border:1.5px solid var(--accent,#e8748a);border-radius:10px;background:var(--accent-bg,#fdf0f2);color:var(--accent,#e8748a);font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;transition:background .15s}
+    .stat-btn:hover{background:var(--accent,#e8748a);color:#fff}
+    .stat-meta{margin-left:auto;font-size:11.5px;color:var(--tx3,#9e9085);font-weight:700}
+    .stat-tcard{margin-top:0;overflow-x:auto}
+    .stat-table{border-collapse:collapse;width:100%;min-width:520px}
+    .stat-table th{font-size:11px;font-weight:800;color:var(--tx3,#9e9085);text-align:left;padding:11px 14px;border-bottom:1.5px solid var(--border,#e8e2d8);white-space:nowrap;background:var(--bg,#f5f3ef)}
+    .stat-table td{padding:9px 14px;border-bottom:1px solid var(--border,#e8e2d8);vertical-align:middle}
+    .stat-table tr:last-child td{border-bottom:none}
+    .stat-game-h{min-width:180px}
+    .stat-game-cell{display:flex;align-items:center;gap:10px}
+    .stat-game-cell .t-thumb{width:42px;height:30px;border-radius:6px;object-fit:cover;flex:none}
+    .stat-game-txt .t-name{font-size:12.5px;font-weight:800;color:var(--tx,#2d2720);line-height:1.25}
+    .stat-game-txt .t-sub{font-size:10.5px;color:var(--tx3,#9e9085);font-weight:700}
+    .stat-mh{position:relative}
+    .stat-mh-name{display:inline-block;max-width:140px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+    .stat-mh-x{display:inline-block;margin-left:7px;width:16px;height:16px;line-height:15px;text-align:center;border-radius:50%;color:var(--tx3,#9e9085);background:rgba(0,0,0,.05);cursor:pointer;font-weight:800;font-size:12px}
+    .stat-mh-x:hover{background:var(--accent,#e8748a);color:#fff}
+    .stat-inp{width:96px;padding:7px 10px;border:1.5px solid var(--border2,#d8d0c4);border-radius:8px;font-size:13px;font-family:inherit;font-weight:700;color:var(--tx,#2d2720);text-align:right;background:var(--white,#fff)}
+    .stat-inp::placeholder{color:#cfc7bb;font-weight:700}
+    .stat-inp:hover{border-color:var(--tx3,#9e9085)}
+    .stat-inp:focus{outline:none;border-color:var(--accent,#e8748a);box-shadow:0 0 0 3px var(--accent-bg,#fdf0f2)}
+    .stat-del-h{width:40px}
+    .stat-del-btn{border:none;background:none;cursor:pointer;font-size:15px;opacity:.5;transition:opacity .15s}
+    .stat-del-btn:hover{opacity:1}
+    .stat-empty{text-align:center;padding:60px 20px;color:var(--tx3,#9e9085);font-size:14px;font-weight:800;line-height:2}
+    .stat-empty span{font-size:12px;font-weight:700;color:#bbb}
+  </style>
+  <div class="stat-page">
+    <div class="pnote" style="margin-bottom:14px">📊 這裡記錄你自己統計的數據（NG／FG 平均得分倍等），<b>不會顯示在主頁</b>。資料隨「📤 儲存」一起同步到 GitHub。</div>
+    <div class="stat-bar">
+      <select class="stat-add-sel" onchange="if(this.value){statAddRow(+this.value);this.value=''}">
+        <option value="">＋ 新增記錄（選一款遊戲）…</option>
+        ${opts}
+      </select>
+      <button class="stat-btn" onclick="statAddMode()">＋ 新增模式</button>
+      <span class="stat-meta">已記錄 ${recCount} 款 · ${statModes.length} 個模式</span>
+    </div>
+    ${rows.length?table:empty}
+  </div>`;
+}
+
+function statAddRow(id){
+  const g=G.find(x=>x.id===id);if(!g)return;
+  if(!g.stats||typeof g.stats!=='object')g.stats={};
+  saveToStorage();markUnsaved();renderStats();
+}
+function statDelRow(id){
+  const g=G.find(x=>x.id===id);if(!g)return;
+  if(!confirm('刪除「'+g.name+'」的統計記錄？'))return;
+  delete g.stats;
+  saveToStorage();markUnsaved();renderStats();
+}
+function statSetVal(id,modeIdx,val){
+  const g=G.find(x=>x.id===id);if(!g)return;
+  const m=statModes[modeIdx];if(m==null)return;
+  if(!g.stats||typeof g.stats!=='object')g.stats={};
+  const v=(val||'').trim();
+  if(v==='')delete g.stats[m];else g.stats[m]=v;
+  saveToStorage();markUnsaved();
+}
+function statAddMode(){
+  const name=prompt('新增統計模式名稱（例如：購買FG 平均得分倍、超級FG 平均得分倍）');
+  if(name==null)return;
+  const n=name.trim();if(!n)return;
+  if(statModes.includes(n)){alert('已有相同模式「'+n+'」');return}
+  statModes.push(n);
+  saveToStorage();markUnsaved();renderStats();
+}
+function statDelMode(idx){
+  const m=statModes[idx];if(m==null)return;
+  if(!confirm('刪除模式「'+m+'」？所有記錄中這一欄的數值會一併移除。'))return;
+  statModes.splice(idx,1);
+  G.forEach(g=>{if(g.stats&&typeof g.stats==='object'&&(m in g.stats))delete g.stats[m]});
+  saveToStorage();markUnsaved();renderStats();
 }
 
 // ── MODAL ──
@@ -578,7 +707,7 @@ function exportCSV(){
 
 function exportHTML(){
   const ts=Date.now();
-  const content='// ── SLOT DB DATA ── (此檔案由系統自動更新，請勿手動編輯)\nvar _DB='+JSON.stringify({ts,nid,g:G})+';\n';
+  const content='// ── SLOT DB DATA ── (此檔案由系統自動更新，請勿手動編輯)\nvar _DB='+JSON.stringify({ts,nid,g:G,statModes})+';\n';
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([content],{type:'text/javascript;charset=utf-8;'}));
   a.download='data-backup-'+new Date().toISOString().slice(0,10)+'.js';a.click();
@@ -615,7 +744,7 @@ async function pushToGitHub(){
     if(infoRes.status!==200&&infoRes.status!==404)throw new Error(info.message||'API 錯誤 '+infoRes.status);
     const sha=info.sha; // 新檔案時為 undefined，GitHub API 允許不帶 sha 建立新檔
     const ts=Date.now();
-    const dataContent='// ── SLOT DB DATA ── (此檔案由系統自動更新，請勿手動編輯)\nvar _DB='+JSON.stringify({ts,nid,g:G})+';\n';
+    const dataContent='// ── SLOT DB DATA ── (此檔案由系統自動更新，請勿手動編輯)\nvar _DB='+JSON.stringify({ts,nid,g:G,statModes})+';\n';
     const encoded=btoa(unescape(encodeURIComponent(dataContent)));
     const body={message:'資料更新 '+new Date().toISOString().slice(0,16).replace('T',' '),content:encoded};
     if(sha)body.sha=sha; // 更新現有檔案才需要 sha
