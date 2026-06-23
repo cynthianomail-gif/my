@@ -42,6 +42,7 @@ async function syncFromGitHub(){
       saveToStorage();
       if(typeof renderMain==='function')renderMain();
       if(typeof populateFilters==='function')populateFilters();
+      if(typeof updateFilterUI==='function')updateFilterUI();
       console.log('[syncFromGitHub] 已從 GitHub 同步最新資料 (ts:'+remote.ts+')');
     }else{
       console.log('[syncFromGitHub] 本地資料已是最新');
@@ -224,7 +225,7 @@ function filt(pf=null){
 
 // ── 篩選列：填入各欄唯一值 + 清除 ──
 function populateFilters(){
-  const cfg=[['f-prov','provider','全部廠商'],['f-conn','__conn','全部連線'],['f-grid','grid','全部盤面'],['f-vol','vol','全部波動'],['f-status','status','全部狀態']];
+  const cfg=[['f-prov','provider','廠商'],['f-conn','__conn','連線'],['f-grid','grid','盤面'],['f-vol','vol','波動'],['f-status','status','狀態']];
   const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
   cfg.forEach(([id,key,allLbl])=>{
     const sel=document.getElementById(id);if(!sel)return;
@@ -244,7 +245,7 @@ function populateFilters(){
     const prev=th.value;
     const cats=THEME_CATS.map(c=>({label:c.label,n:G.filter(g=>themeCatMatch(g,c.label)).length})).filter(c=>c.n>0);
     const otherN=G.filter(g=>themeCatMatch(g,'其他')).length;
-    let html='<option value="">全部主題</option>';
+    let html='<option value="">主題</option>';
     cats.forEach(c=>html+='<option value="'+c.label+'">'+c.label+' ('+c.n+')</option>');
     if(otherN>0)html+='<option value="其他">其他 ('+otherN+')</option>';
     th.innerHTML=html;
@@ -254,6 +255,26 @@ function populateFilters(){
 function clearFilters(){
   ['f-prov','f-conn','f-grid','f-vol','f-status','f-theme','f-date-from','f-date-to','q'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   renderCurrent();
+}
+// 篩選器：標記啟用中欄位 + 顯示啟用數量徽章
+function updateFilterUI(){
+  const ids=['f-prov','f-conn','f-grid','f-vol','f-status','f-theme','f-date-from','f-date-to'];
+  let n=0;
+  ids.forEach(id=>{const e=document.getElementById(id);if(!e)return;const on=!!e.value;e.classList.toggle('on',on);if(on)n++;});
+  const panel=document.getElementById('fpanel');
+  if(panel){panel.classList.toggle('has-active',n>0);const c=document.getElementById('fcount');if(c)c.textContent=n;}
+}
+// 篩選器：收 / 開（狀態記憶於 localStorage）
+function toggleFilters(){
+  const p=document.getElementById('fpanel');if(!p)return;
+  p.classList.toggle('collapsed');
+  try{localStorage.setItem('fbar_collapsed',p.classList.contains('collapsed')?'1':'0');}catch(e){}
+}
+function initFilterPanel(){
+  const p=document.getElementById('fpanel');if(!p)return;
+  let c='0';try{c=localStorage.getItem('fbar_collapsed')||'0';}catch(e){}
+  p.classList.toggle('collapsed',c==='1');
+  updateFilterUI();
 }
 
 function rowHtml(g,i){
@@ -281,6 +302,7 @@ function renderCurrent(){
   const provMap={hacksaw:'Hacksaw Gaming',nolimit:'NoLimit City',elk:'ELK Studios',playngo:"Play'n GO",shady:'Shady Lady',prag:'Pragmatic Play'};
   if(cur==='all')renderMain();
   else if(provMap[cur])renderProv(provMap[cur]);
+  updateFilterUI();
 }
 
 function renderMain(){
@@ -660,5 +682,6 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
 document.getElementById('modal-ov').addEventListener('click',e=>{if(e.target===document.getElementById('modal-ov'))closeModal()});
 renderMain();
 populateFilters();
+initFilterPanel();
 // 頁面載入後自動同步 GitHub 最新資料
 syncFromGitHub();

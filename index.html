@@ -63,23 +63,50 @@
         <div class="stat s1"><div class="n" id="st-mo">24</div><div class="l">本月新增</div></div>
       </div>
       <style>
-      .fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:10px 12px;background:var(--bg2,#f0ece6);border-radius:12px}
-      .fbar .fsel,.fbar .finp{padding:6px 10px;border:1.5px solid var(--bg3,#dcd6cc);border-radius:8px;background:#fff;font-size:12px;font-family:inherit;color:var(--tx,#3a332b);cursor:pointer;max-width:170px}
-      .fbar .fdate{font-size:12px;color:var(--tx2,#8a8178);display:flex;align-items:center;gap:5px}
-      .fbar .finp{cursor:text;max-width:140px}
-      .fbar .fclr{padding:6px 13px;border:1.5px solid #f0c8c8;background:#fff6f6;color:#d0405a;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;margin-left:auto}
-      .fbar .fclr:hover{background:#ffeaea}
+      .fpanel{background:var(--white,#fff);border:1.5px solid var(--border,#e8e2d8);border-radius:var(--r,14px);box-shadow:var(--shadow,0 2px 12px rgba(45,39,32,.07));margin:0 0 18px;overflow:hidden}
+      .fhead{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;user-select:none;transition:background .15s}
+      .fhead:hover{background:var(--bg,#f5f3ef)}
+      .fhead .ic{font-size:14px}
+      .fhead-title{font-size:12.5px;font-weight:800;color:var(--tx,#2d2720);letter-spacing:.3px}
+      .fcount{font-size:11px;font-weight:800;color:#fff;background:var(--accent,#e8748a);border-radius:20px;padding:1px 9px;min-width:20px;text-align:center;display:none}
+      .fpanel.has-active .fcount{display:inline-block}
+      .fhead-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+      .fclr-mini{font-size:11px;font-weight:800;color:var(--accent,#e8748a);background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 9px;border-radius:8px;display:none}
+      .fpanel.has-active .fclr-mini{display:inline-block}
+      .fclr-mini:hover{background:var(--accent-bg,#fdf0f2)}
+      .fchev{font-size:11px;color:var(--tx3,#9e9085);transition:transform .25s;display:inline-block}
+      .fpanel.collapsed .fchev{transform:rotate(-90deg)}
+      .fbody{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:13px 16px 14px;border-top:1px solid var(--border,#e8e2d8)}
+      .fpanel.collapsed .fbody{display:none}
+      .fsel,.finp{padding:7px 12px;border:1.5px solid var(--border2,#d8d0c4);border-radius:10px;background:var(--white,#fff);font-size:12px;font-family:inherit;font-weight:700;color:var(--tx,#2d2720);cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;max-width:175px}
+      .fsel:hover,.finp:hover{border-color:var(--tx3,#9e9085)}
+      .fsel:focus,.finp:focus{outline:none;border-color:var(--accent,#e8748a);box-shadow:0 0 0 3px var(--accent-bg,#fdf0f2)}
+      .fsel.on,.finp.on{border-color:var(--accent,#e8748a);background:var(--accent-bg,#fdf0f2);color:var(--accent,#e8748a)}
+      .fdate{font-size:12px;color:var(--tx2,#6b5e52);display:flex;align-items:center;gap:6px;font-weight:700}
+      .finp{cursor:text;max-width:150px}
+      .fclr{padding:7px 15px;border:1.5px solid var(--accent-soft,#f5c0ca);background:var(--accent-bg,#fdf0f2);color:var(--accent,#e8748a);border-radius:10px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:800;margin-left:auto}
+      .fclr:hover{background:#fbe3e8}
       td.t-theme .thm{display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;font-size:12px;color:var(--tx2,#8a8178);background:var(--bg2,#f3efe9);padding:2px 8px;border-radius:6px}
       </style>
-      <div class="fbar" id="fbar">
-        <select id="f-prov" class="fsel" onchange="renderCurrent()"></select>
-        <select id="f-conn" class="fsel" onchange="renderCurrent()"></select>
-        <select id="f-grid" class="fsel" onchange="renderCurrent()"></select>
-        <select id="f-vol" class="fsel" onchange="renderCurrent()"></select>
-        <select id="f-status" class="fsel" onchange="renderCurrent()"></select>
-        <select id="f-theme" class="fsel" onchange="renderCurrent()"></select>
-        <span class="fdate">📅 <input type="date" id="f-date-from" class="finp" onchange="renderCurrent()"> ～ <input type="date" id="f-date-to" class="finp" onchange="renderCurrent()"></span>
-        <button class="fclr" onclick="clearFilters()">✕ 清除篩選</button>
+      <div class="fpanel" id="fpanel">
+        <div class="fhead" onclick="toggleFilters()">
+          <span class="ic">🔍</span><span class="fhead-title">篩選器</span>
+          <span class="fcount" id="fcount">0</span>
+          <span class="fhead-right">
+            <button class="fclr-mini" onclick="event.stopPropagation();clearFilters()">清除</button>
+            <span class="fchev">▾</span>
+          </span>
+        </div>
+        <div class="fbody">
+          <select id="f-prov" class="fsel" onchange="renderCurrent()"></select>
+          <select id="f-conn" class="fsel" onchange="renderCurrent()"></select>
+          <select id="f-grid" class="fsel" onchange="renderCurrent()"></select>
+          <select id="f-vol" class="fsel" onchange="renderCurrent()"></select>
+          <select id="f-status" class="fsel" onchange="renderCurrent()"></select>
+          <select id="f-theme" class="fsel" onchange="renderCurrent()"></select>
+          <span class="fdate">📅 <input type="date" id="f-date-from" class="finp" onchange="renderCurrent()"> ～ <input type="date" id="f-date-to" class="finp" onchange="renderCurrent()"></span>
+          <button class="fclr" onclick="clearFilters()">✕ 清除篩選</button>
+        </div>
       </div>
       <div class="tcard">
         <table>
