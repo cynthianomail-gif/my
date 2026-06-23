@@ -312,7 +312,7 @@ function rowHtml(g,i){
 function renderCurrent(){
   const provMap={hacksaw:'Hacksaw Gaming',nolimit:'NoLimit City',elk:'ELK Studios',playngo:"Play'n GO",shady:'Shady Lady',prag:'Pragmatic Play'};
   if(cur==='all')renderMain();
-  else if(cur==='stats')renderStats();
+  else if(cur==='stats')statRefresh();
   else if(provMap[cur])renderProv(provMap[cur]);
   updateFilterUI();
 }
@@ -537,44 +537,24 @@ function goPage(name){
 // ── 統計數據分頁 ──
 const STAT_PROV_ORDER=['Hacksaw Gaming','NoLimit City','ELK Studios',"Play'n GO",'Shady Lady','Pragmatic Play'];
 let statChartMode=0; // 長條圖目前選的項目索引
+let statSort={k:null,d:-1}; // 表格排序：k=null(預設廠商+名稱)/'name'/項目名；d=-1大到小,1小到大
 function _statEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _statAttr(s){return _statEsc(s).replace(/"/g,'&quot;');}
 function statProvIdx(p){const i=STAT_PROV_ORDER.indexOf(p);return i<0?99:i;}
 
 function renderStats(){
   const el=document.getElementById('pg-stats');if(!el)return;
-  const q=((document.getElementById('q')||{}).value||'').toLowerCase();
-  // 已記錄的遊戲（有 stats 物件即出現在表格中，數值可為空）
-  let rows=G.filter(g=>g.stats&&typeof g.stats==='object');
-  if(q)rows=rows.filter(g=>g.name.toLowerCase().includes(q)||(g.provider||'').toLowerCase().includes(q));
-  rows.sort((a,b)=>statProvIdx(a.provider)-statProvIdx(b.provider)||a.name.localeCompare(b.name));
   // 尚未記錄的遊戲 → 新增記錄下拉（依廠商分組）
   const avail=G.filter(g=>!(g.stats&&typeof g.stats==='object'));
   const byProv={};avail.forEach(g=>{(byProv[g.provider]=byProv[g.provider]||[]).push(g)});
   const provs=[...STAT_PROV_ORDER.filter(p=>byProv[p]),...Object.keys(byProv).filter(p=>!STAT_PROV_ORDER.includes(p))];
   const opts=provs.map(p=>`<optgroup label="${_statAttr(p)}">`+byProv[p].sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<option value="${g.id}">${_statEsc(g.name)}</option>`).join('')+`</optgroup>`).join('');
   const recCount=G.filter(g=>g.stats&&typeof g.stats==='object').length;
-
-  const modeCols=statModes.map((m,i)=>`<th class="stat-mh"><span class="stat-mh-name" title="${_statAttr(m)}">${_statEsc(m)}</span><span class="stat-mh-x" title="刪除此項目欄位" onclick="statDelMode(${i})">×</span></th>`).join('');
-  const bodyRows=rows.map(g=>{
-    const cells=statModes.map((m,i)=>{
-      const v=g.stats[m];
-      return `<td class="stat-cell"><input class="stat-inp" type="text" inputmode="decimal" value="${v==null?'':_statAttr(String(v))}" placeholder="＋" onchange="statSetVal(${g.id},${i},this.value)"></td>`;
-    }).join('');
-    return `<tr>
-      <td class="stat-game"><div class="stat-game-cell">${imgWithFallback(g.img,g.name,g.provider,'t-thumb')}<div class="stat-game-txt"><div class="t-name">${_statEsc(g.name)}</div><div class="t-sub">${_statEsc(g.provider||'')}</div></div></div></td>
-      ${cells}
-      <td class="stat-del"><button class="stat-del-btn" title="刪除此記錄" onclick="statDelRow(${g.id})">🗑️</button></td>
-    </tr>`;
-  }).join('');
-
-  const empty=recCount
-    ? `<div class="stat-empty">🔍 找不到符合「${_statEsc(q)}」的記錄</div>`
-    : `<div class="stat-empty">📊 還沒有任何統計記錄<br><span>從上方「＋ 新增記錄」選一款遊戲開始填寫</span></div>`;
-  const table=`<div class="tcard stat-tcard"><table class="stat-table">
-      <thead><tr><th class="stat-game-h">遊戲</th>${modeCols}<th class="stat-del-h"></th></tr></thead>
-      <tbody>${bodyRows}</tbody>
-    </table></div>`;
+  const emptyNo=`<div class="stat-empty">📊 還沒有任何統計記錄<br><span>從上方「＋ 新增記錄」選一款遊戲開始填寫</span></div>`;
+  // 動態區（總攬為全部記錄；篩選列＋表格作用在下方遊戲清單）
+  const dyn=recCount
+    ? statOverviewHtml()+statFilterBarHtml()+`<div id="stat-tablewrap">${statTableHtml(statSortRows(statFiltered()))}</div>`
+    : emptyNo;
 
   el.innerHTML=`
   <style>
@@ -634,6 +614,18 @@ function renderStats(){
     .ov-bar-fill{display:block;height:100%;background:var(--accent,#e8748a);opacity:.72;border-radius:4px}
     .ov-bar-v{width:52px;flex:none;text-align:right;font-size:11.5px;font-weight:800;color:var(--tx,#2d2720);font-variant-numeric:tabular-nums}
     .ov-chart-empty{font-size:11.5px;color:var(--tx3,#9e9085);font-weight:700;padding:6px 0}
+    .stat-filt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+    .sf-sel,.sf-num{padding:6px 10px;border:1.5px solid var(--border2,#d8d0c4);border-radius:9px;background:var(--white,#fff);font-size:11.5px;font-family:inherit;font-weight:700;color:var(--tx,#2d2720);cursor:pointer}
+    .sf-sel:focus,.sf-num:focus{outline:none;border-color:var(--accent,#e8748a);box-shadow:0 0 0 3px var(--accent-bg,#fdf0f2)}
+    .sf-sel.on,.sf-num.on{border-color:var(--accent,#e8748a);background:var(--accent-bg,#fdf0f2);color:var(--accent,#e8748a)}
+    .sf-num{width:62px;cursor:text;text-align:right}
+    .stat-filt-range{display:inline-flex;align-items:center;gap:5px;padding:3px 5px;border-radius:9px;background:var(--bg,#f5f3ef)}
+    .sf-tilde{font-size:11px;color:var(--tx3,#9e9085);font-weight:800}
+    .sf-clr{padding:6px 12px;font-size:11.5px}
+    .stat-cnt{font-size:11px;color:var(--tx3,#9e9085);font-weight:700;margin:2px 0 8px}
+    .stat-mh-name.sortable,.stat-game-h.sortable{cursor:pointer}
+    .stat-mh-name.sortable:hover,.stat-game-h.sortable:hover{color:var(--accent,#e8748a)}
+    .stat-mh-name.sorted,.stat-game-h.sorted{color:var(--accent,#e8748a)}
     @media(max-width:720px){.ov-grid{grid-template-columns:1fr}}
   </style>
   <div class="stat-page">
@@ -647,9 +639,108 @@ function renderStats(){
       <button class="stat-btn ghost" onclick="statExportCSV()">⬇ 匯出 CSV</button>
       <span class="stat-meta">已記錄 ${recCount} 款 ${statModes.length} 個項目</span>
     </div>
-    ${statOverviewHtml()}
-    ${rows.length?table:empty}
+    ${dyn}
   </div>`;
+  if(recCount)statMarkFilters();
+}
+
+// ── 排序 / 篩選 ──
+function statFv(id){const e=document.getElementById(id);return e?e.value:'';}
+function statMarkFilters(){['sf-prov','sf-vol','sf-conn','sf-status','sf-theme','sf-mode','sf-min','sf-max'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',!!e.value);});}
+function statFiltered(){
+  const q=((document.getElementById('q')||{}).value||'').toLowerCase();
+  const fp=statFv('sf-prov'),fvl=statFv('sf-vol'),fc=statFv('sf-conn'),fs=statFv('sf-status'),ft=statFv('sf-theme');
+  const fm=statFv('sf-mode'),fmin=parseFloat(statFv('sf-min')),fmax=parseFloat(statFv('sf-max'));
+  return G.filter(g=>g.stats&&typeof g.stats==='object').filter(g=>{
+    if(q&&!(g.name.toLowerCase().includes(q)||(g.provider||'').toLowerCase().includes(q)))return false;
+    if(fp&&g.provider!==fp)return false;
+    if(fvl&&(g.vol||'')!==fvl)return false;
+    if(fc&&connCat(g.conn||'')!==fc)return false;
+    if(fs&&(g.status||'庫存')!==fs)return false;
+    if(ft&&!themeCatMatch(g,ft))return false;
+    if(fm){const v=parseFloat(g.stats[fm]);if(isNaN(v))return false;if(!isNaN(fmin)&&v<fmin)return false;if(!isNaN(fmax)&&v>fmax)return false;}
+    return true;
+  });
+}
+function statSortRows(rows){
+  const k=statSort.k,d=statSort.d;
+  if(!k)return rows.sort((a,b)=>statProvIdx(a.provider)-statProvIdx(b.provider)||a.name.localeCompare(b.name));
+  if(k==='name')return rows.sort((a,b)=>d*a.name.localeCompare(b.name));
+  return rows.sort((a,b)=>{
+    const av=parseFloat(a.stats[k]),bv=parseFloat(b.stats[k]),an=isNaN(av),bn=isNaN(bv);
+    if(an&&bn)return a.name.localeCompare(b.name);
+    if(an)return 1; if(bn)return -1; // 缺值墊底
+    return d===-1?(bv-av):(av-bv);
+  });
+}
+function statSortBy(arg){
+  const key=(arg==='name')?'name':statModes[arg];
+  if(key==null)return;
+  if(statSort.k===key)statSort.d=-statSort.d; else {statSort.k=key;statSort.d=-1;}
+  statRefresh();
+}
+function statRefresh(){
+  const wrap=document.getElementById('stat-tablewrap');
+  if(!wrap){renderStats();return;}
+  wrap.innerHTML=statTableHtml(statSortRows(statFiltered()));
+  statMarkFilters();
+}
+function statClearFilters(){
+  ['sf-prov','sf-vol','sf-conn','sf-status','sf-theme','sf-mode','sf-min','sf-max'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const q=document.getElementById('q');if(q)q.value='';
+  statRefresh();
+}
+function statFilterBarHtml(){
+  const recorded=G.filter(g=>g.stats&&typeof g.stats==='object');
+  const uniq=arr=>[...new Set(arr.filter(Boolean))];
+  const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
+  const provVals=[...STAT_PROV_ORDER.filter(p=>recorded.some(g=>g.provider===p)),...uniq(recorded.map(g=>g.provider)).filter(p=>!STAT_PROV_ORDER.includes(p))];
+  const volVals=uniq(recorded.map(g=>g.vol)).sort((a,b)=>(VOL_ORD[a]||9)-(VOL_ORD[b]||9));
+  const connVals=uniq(recorded.map(g=>connCat(g.conn||''))).sort((a,b)=>String(a).localeCompare(String(b)));
+  const statusVals=uniq(recorded.map(g=>g.status||'庫存')).sort((a,b)=>String(a).localeCompare(String(b)));
+  const themeVals=(typeof THEME_CATS!=='undefined'?THEME_CATS.map(c=>c.label):[]).filter(lbl=>recorded.some(g=>themeCatMatch(g,lbl)));
+  if(recorded.some(g=>themeCatMatch(g,'其他')))themeVals.push('其他');
+  const opt=vals=>vals.map(v=>`<option value="${_statAttr(v)}">${_statEsc(v)}</option>`).join('');
+  const modeOpts=statModes.map(m=>`<option value="${_statAttr(m)}">${_statEsc(statTrunc(m,14))}</option>`).join('');
+  return `<div class="stat-filt">
+    <select id="sf-prov" class="sf-sel" onchange="statRefresh()"><option value="">廠商</option>${opt(provVals)}</select>
+    <select id="sf-vol" class="sf-sel" onchange="statRefresh()"><option value="">波動</option>${opt(volVals)}</select>
+    <select id="sf-conn" class="sf-sel" onchange="statRefresh()"><option value="">連線</option>${opt(connVals)}</select>
+    <select id="sf-status" class="sf-sel" onchange="statRefresh()"><option value="">狀態</option>${opt(statusVals)}</select>
+    <select id="sf-theme" class="sf-sel" onchange="statRefresh()"><option value="">主題</option>${opt(themeVals)}</select>
+    <span class="stat-filt-range">
+      <select id="sf-mode" class="sf-sel" onchange="statRefresh()"><option value="">項目範圍</option>${modeOpts}</select>
+      <input id="sf-min" class="sf-num" type="number" inputmode="decimal" placeholder="min" oninput="statRefresh()">
+      <span class="sf-tilde">~</span>
+      <input id="sf-max" class="sf-num" type="number" inputmode="decimal" placeholder="max" oninput="statRefresh()">
+    </span>
+    <button class="stat-btn ghost sf-clr" onclick="statClearFilters()">清除篩選</button>
+  </div>`;
+}
+function statTableHtml(rows){
+  if(!rows.length)return `<div class="stat-empty">🔍 沒有符合篩選條件的記錄</div>`;
+  const recCount=G.filter(g=>g.stats&&typeof g.stats==='object').length;
+  const arrow=act=>act?(statSort.d===-1?' ▾':' ▴'):'';
+  const nameAct=statSort.k==='name';
+  const modeCols=statModes.map((m,i)=>{
+    const act=statSort.k===m;
+    return `<th class="stat-mh"><span class="stat-mh-name sortable${act?' sorted':''}" title="${_statAttr(m)}（點擊排序）" onclick="statSortBy(${i})">${_statEsc(m)}${arrow(act)}</span><span class="stat-mh-x" title="刪除此項目欄位" onclick="event.stopPropagation();statDelMode(${i})">×</span></th>`;
+  }).join('');
+  const body=rows.map(g=>{
+    const cells=statModes.map((m,i)=>{
+      const v=g.stats[m];
+      return `<td class="stat-cell"><input class="stat-inp" type="text" inputmode="decimal" value="${v==null?'':_statAttr(String(v))}" placeholder="＋" onchange="statSetVal(${g.id},${i},this.value)"></td>`;
+    }).join('');
+    return `<tr>
+      <td class="stat-game"><div class="stat-game-cell">${imgWithFallback(g.img,g.name,g.provider,'t-thumb')}<div class="stat-game-txt"><div class="t-name">${_statEsc(g.name)}</div><div class="t-sub">${_statEsc(g.provider||'')}</div></div></div></td>
+      ${cells}
+      <td class="stat-del"><button class="stat-del-btn" title="刪除此記錄" onclick="statDelRow(${g.id})">🗑️</button></td>
+    </tr>`;
+  }).join('');
+  return `<div class="stat-cnt">顯示 ${rows.length} / ${recCount} 款</div><div class="tcard stat-tcard"><table class="stat-table">
+      <thead><tr><th class="stat-game-h sortable${nameAct?' sorted':''}" title="點擊排序" onclick="statSortBy('name')">遊戲${arrow(nameAct)}</th>${modeCols}<th class="stat-del-h"></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>`;
 }
 
 // 總攬：A 項目摘要卡片 · B 廠商比較表 · D 視覺長條圖
