@@ -675,11 +675,8 @@ function statOverviewHtml(){
   // A · 項目摘要卡片
   const cards=statModes.map(m=>{
     const vals=statNumVals(m);
-    if(!vals.length)return `<div class="ovcard"><div class="ovc-l" title="${_statAttr(m)}">${_statEsc(m)}</div><div class="ovc-n">—</div><div class="ovc-s">尚無數值</div></div>`;
-    const nums=vals.map(x=>x.v);
-    const avg=nums.reduce((a,b)=>a+b,0)/nums.length;
-    const mx=vals.reduce((a,b)=>b.v>a.v?b:a),mn=vals.reduce((a,b)=>b.v<a.v?b:a);
-    return `<div class="ovcard"><div class="ovc-l" title="${_statAttr(m)}">${_statEsc(m)}</div><div class="ovc-n">${statFmt(avg)}</div><div class="ovc-s">最高 ${_statEsc(String(mx.g.stats[m]))} <i>${_statEsc(statTrunc(mx.g.name,8))}</i> · 最低 ${_statEsc(String(mn.g.stats[m]))} <i>${_statEsc(statTrunc(mn.g.name,8))}</i> · ${vals.length} 款</div></div>`;
+    const avg=vals.length?vals.reduce((a,b)=>a+b.v,0)/vals.length:NaN;
+    return `<div class="ovcard"><div class="ovc-l" title="${_statAttr(m)}">${_statEsc(m)}</div><div class="ovc-n">${statFmt(avg)}</div></div>`;
   }).join('');
   // B · 廠商比較表
   const provsRec=[...STAT_PROV_ORDER.filter(p=>recorded.some(g=>g.provider===p)),...[...new Set(recorded.map(g=>g.provider))].filter(p=>!STAT_PROV_ORDER.includes(p))];
