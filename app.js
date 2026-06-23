@@ -167,6 +167,8 @@ function themeOf(g){
   return pre.replace(/^的\s*/,'').replace(/[的\s]+$/,'').trim();
 }
 function fv(id){const e=document.getElementById(id);return e?e.value:'';}
+// 連線分類：各種線數類（X 線 / Lines / Paylines）併為單一 Paylines，其餘原樣（表格仍顯示原始線數）
+function connCat(c){return c?(/線|[Ll]ines?/.test(c)?'Paylines':c):'';}
 
 function gameLink(g){
   if(g.link&&g.link!=='https://www.bigwinboard.com/')return g.link;
@@ -183,11 +185,11 @@ function filt(pf=null){
     if(pf&&g.provider!==pf)return false;
     if(q&&!(g.name.toLowerCase().includes(q)||g.provider.toLowerCase().includes(q)||(g.sum||'').toLowerCase().includes(q)))return false;
     if(fProv&&g.provider!==fProv)return false;
-    if(fConn&&(g.conn||'')!==fConn)return false;
+    if(fConn&&connCat(g.conn||'')!==fConn)return false;
     if(fGrid&&(g.grid||'')!==fGrid)return false;
     if(fVol&&(g.vol||'')!==fVol)return false;
     if(fSt&&(g.status||'庫存')!==fSt)return false;
-    if(fTheme&&themeOf(g)!==fTheme)return false;
+    if(fTheme&&!themeOf(g).toLowerCase().includes(fTheme.toLowerCase()))return false;
     if(dFrom&&(g.releaseDate||'')<dFrom)return false;
     if(dTo&&(g.releaseDate||'')>dTo)return false;
     return true;
@@ -205,13 +207,13 @@ function filt(pf=null){
 
 // ── 篩選列：填入各欄唯一值 + 清除 ──
 function populateFilters(){
-  const cfg=[['f-prov','provider','全部廠商'],['f-conn','conn','全部連線'],['f-grid','grid','全部盤面'],['f-vol','vol','全部波動'],['f-status','status','全部狀態'],['f-theme','__theme','全部主題']];
+  const cfg=[['f-prov','provider','全部廠商'],['f-conn','__conn','全部連線'],['f-grid','grid','全部盤面'],['f-vol','vol','全部波動'],['f-status','status','全部狀態']];
   const VOL_ORD={'Low':1,'Medium-Low':2,'Medium':3,'Medium-High':4,'High':5,'Extreme':6};
   cfg.forEach(([id,key,allLbl])=>{
     const sel=document.getElementById(id);if(!sel)return;
     const prev=sel.value;
     let vals;
-    if(key==='__theme')vals=[...new Set(G.map(g=>themeOf(g)).filter(Boolean))];
+    if(key==='__conn')vals=[...new Set(G.map(g=>connCat(g.conn||'')).filter(Boolean))];
     else if(key==='status')vals=[...new Set(G.map(g=>g.status||'庫存').filter(Boolean))];
     else vals=[...new Set(G.map(g=>g[key]||'').filter(Boolean))];
     if(id==='f-vol')vals.sort((a,b)=>(VOL_ORD[a]||9)-(VOL_ORD[b]||9));
