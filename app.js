@@ -554,7 +554,7 @@ function renderStats(){
   const opts=provs.map(p=>`<optgroup label="${_statAttr(p)}">`+byProv[p].sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<option value="${g.id}">${_statEsc(g.name)}</option>`).join('')+`</optgroup>`).join('');
   const recCount=G.filter(g=>g.stats&&typeof g.stats==='object').length;
 
-  const modeCols=statModes.map((m,i)=>`<th class="stat-mh"><span class="stat-mh-name" title="${_statAttr(m)}">${_statEsc(m)}</span><span class="stat-mh-x" title="刪除此模式欄位" onclick="statDelMode(${i})">×</span></th>`).join('');
+  const modeCols=statModes.map((m,i)=>`<th class="stat-mh"><span class="stat-mh-name" title="${_statAttr(m)}">${_statEsc(m)}</span><span class="stat-mh-x" title="刪除此項目欄位" onclick="statDelMode(${i})">×</span></th>`).join('');
   const bodyRows=rows.map(g=>{
     const cells=statModes.map((m,i)=>{
       const v=g.stats[m];
@@ -609,15 +609,15 @@ function renderStats(){
     .stat-empty span{font-size:12px;font-weight:700;color:#bbb}
   </style>
   <div class="stat-page">
-    <div class="pnote" style="margin-bottom:14px">📊 這裡記錄你自己統計的數據（NG／FG 平均得分倍等），<b>不會顯示在主頁</b>。資料隨「📤 儲存」一起同步到 GitHub。</div>
+    <div class="pnote" style="margin-bottom:14px">記錄統計數據（NG／FG 平均得分倍等）。更新資料後，請點擊「📤 儲存」同步到 GitHub。</div>
     <div class="stat-bar">
       <select class="stat-add-sel" onchange="if(this.value){statAddRow(+this.value);this.value=''}">
         <option value="">＋ 新增記錄（選一款遊戲）…</option>
         ${opts}
       </select>
-      <button class="stat-btn" onclick="statAddMode()">＋ 新增模式</button>
+      <button class="stat-btn" onclick="statAddMode()">＋ 新增項目</button>
       <button class="stat-btn ghost" onclick="statExportCSV()">⬇ 匯出 CSV</button>
-      <span class="stat-meta">已記錄 ${recCount} 款 · ${statModes.length} 個模式</span>
+      <span class="stat-meta">已記錄 ${recCount} 款 ${statModes.length} 個項目</span>
     </div>
     ${rows.length?table:empty}
   </div>`;
@@ -643,16 +643,16 @@ function statSetVal(id,modeIdx,val){
   saveToStorage();markUnsaved();
 }
 function statAddMode(){
-  const name=prompt('新增統計模式名稱（例如：購買FG 平均得分倍、超級FG 平均得分倍）');
+  const name=prompt('新增項目名稱（例如：購買FG 平均得分倍、超級FG 平均得分倍）');
   if(name==null)return;
   const n=name.trim();if(!n)return;
-  if(statModes.includes(n)){alert('已有相同模式「'+n+'」');return}
+  if(statModes.includes(n)){alert('已有相同項目「'+n+'」');return}
   statModes.push(n);
   saveToStorage();markUnsaved();renderStats();
 }
 function statDelMode(idx){
   const m=statModes[idx];if(m==null)return;
-  if(!confirm('刪除模式「'+m+'」？所有記錄中這一欄的數值會一併移除。'))return;
+  if(!confirm('刪除項目「'+m+'」？所有記錄中這一欄的數值會一併移除。'))return;
   statModes.splice(idx,1);
   G.forEach(g=>{if(g.stats&&typeof g.stats==='object'&&(m in g.stats))delete g.stats[m]});
   saveToStorage();markUnsaved();renderStats();
