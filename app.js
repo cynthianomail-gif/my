@@ -536,6 +536,7 @@ function goPage(name){
 
 // ── 統計數據分頁 ──
 const STAT_PROV_ORDER=['Hacksaw Gaming','NoLimit City','ELK Studios',"Play'n GO",'Shady Lady','Pragmatic Play'];
+let statChartMode=0; // 長條圖目前選的項目索引
 function _statEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _statAttr(s){return _statEsc(s).replace(/"/g,'&quot;');}
 function statProvIdx(p){const i=STAT_PROV_ORDER.indexOf(p);return i<0?99:i;}
@@ -567,7 +568,9 @@ function renderStats(){
     </tr>`;
   }).join('');
 
-  const empty=`<div class="stat-empty">📊 還沒有任何統計記錄<br><span>從上方「＋ 新增記錄」選一款遊戲開始填寫</span></div>`;
+  const empty=recCount
+    ? `<div class="stat-empty">🔍 找不到符合「${_statEsc(q)}」的記錄</div>`
+    : `<div class="stat-empty">📊 還沒有任何統計記錄<br><span>從上方「＋ 新增記錄」選一款遊戲開始填寫</span></div>`;
   const table=`<div class="tcard stat-tcard"><table class="stat-table">
       <thead><tr><th class="stat-game-h">遊戲</th>${modeCols}<th class="stat-del-h"></th></tr></thead>
       <tbody>${bodyRows}</tbody>
@@ -607,6 +610,31 @@ function renderStats(){
     .stat-del-btn:hover{opacity:1}
     .stat-empty{text-align:center;padding:60px 20px;color:var(--tx3,#9e9085);font-size:14px;font-weight:800;line-height:2}
     .stat-empty span{font-size:12px;font-weight:700;color:#bbb}
+    .stat-ov{margin:0 0 16px}
+    .stat-ov-title{font-size:12px;font-weight:800;color:var(--tx3,#9e9085);letter-spacing:.5px;margin:0 0 10px}
+    .ov-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin-bottom:12px}
+    .ovcard{background:var(--bg,#f5f3ef);border-radius:12px;padding:12px 14px}
+    .ovc-l{font-size:11.5px;color:var(--tx3,#9e9085);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ovc-n{font-size:24px;font-weight:800;color:var(--tx,#2d2720);margin:3px 0 4px;font-variant-numeric:tabular-nums}
+    .ovc-s{font-size:10.5px;color:var(--tx3,#9e9085);font-weight:700;line-height:1.55}
+    .ovc-s i{font-style:normal;color:var(--tx,#2d2720)}
+    .ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .ov-block{background:var(--white,#fff);border:1.5px solid var(--border,#e8e2d8);border-radius:12px;padding:12px 14px;min-width:0}
+    .ov-blk-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;color:var(--tx,#2d2720);margin-bottom:10px}
+    .ov-tablewrap{overflow-x:auto}
+    .ov-table{border-collapse:collapse;width:100%;font-size:12px}
+    .ov-table th{text-align:left;font-weight:800;color:var(--tx3,#9e9085);font-size:11px;padding:6px 8px;border-bottom:1.5px solid var(--border,#e8e2d8);white-space:nowrap}
+    .ov-table td{padding:6px 8px;border-bottom:1px solid var(--border,#e8e2d8);color:var(--tx,#2d2720);font-weight:700;white-space:nowrap}
+    .ov-table td.num,.ov-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+    .ov-table tr:last-child td{border-bottom:none}
+    .ov-chart-sel{padding:4px 9px;border:1.5px solid var(--border2,#d8d0c4);border-radius:8px;background:var(--white,#fff);font-size:11px;font-family:inherit;font-weight:700;color:var(--tx,#2d2720);cursor:pointer;max-width:160px}
+    .ov-bar-row{display:flex;align-items:center;gap:8px;margin:7px 0}
+    .ov-bar-name{width:92px;flex:none;font-size:11.5px;font-weight:700;color:var(--tx,#2d2720);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ov-bar{flex:1;height:14px;background:var(--bg,#f5f3ef);border-radius:4px;overflow:hidden;min-width:0}
+    .ov-bar-fill{display:block;height:100%;background:var(--accent,#e8748a);opacity:.72;border-radius:4px}
+    .ov-bar-v{width:52px;flex:none;text-align:right;font-size:11.5px;font-weight:800;color:var(--tx,#2d2720);font-variant-numeric:tabular-nums}
+    .ov-chart-empty{font-size:11.5px;color:var(--tx3,#9e9085);font-weight:700;padding:6px 0}
+    @media(max-width:720px){.ov-grid{grid-template-columns:1fr}}
   </style>
   <div class="stat-page">
     <div class="pnote" style="margin-bottom:14px">記錄統計數據（NG／FG 平均得分倍等）。更新資料後，請點擊「📤 儲存」同步到 GitHub。</div>
@@ -619,7 +647,62 @@ function renderStats(){
       <button class="stat-btn ghost" onclick="statExportCSV()">⬇ 匯出 CSV</button>
       <span class="stat-meta">已記錄 ${recCount} 款 ${statModes.length} 個項目</span>
     </div>
+    ${statOverviewHtml()}
     ${rows.length?table:empty}
+  </div>`;
+}
+
+// 總攬：A 項目摘要卡片 · B 廠商比較表 · D 視覺長條圖
+function statNumVals(mode){
+  return G.filter(g=>g.stats&&typeof g.stats==='object'&&g.stats[mode]!=null&&String(g.stats[mode]).trim()!=='')
+    .map(g=>({g,v:parseFloat(g.stats[mode])}))
+    .filter(x=>!isNaN(x.v));
+}
+function statFmt(n){return isFinite(n)?String(Math.round(n*100)/100):'—';}
+function statTrunc(s,n){s=String(s);return s.length>n?s.slice(0,n-1)+'…':s;}
+function statChartBars(){
+  if(!statModes.length)return '<div class="ov-chart-empty">尚無項目</div>';
+  const mode=statModes[Math.min(statChartMode,statModes.length-1)];
+  const vals=statNumVals(mode).sort((a,b)=>b.v-a.v);
+  if(!vals.length)return '<div class="ov-chart-empty">此項目尚無數值</div>';
+  const max=Math.max(...vals.map(x=>x.v))||1;
+  return vals.map(x=>`<div class="ov-bar-row"><span class="ov-bar-name" title="${_statAttr(x.g.name)}">${_statEsc(x.g.name)}</span><span class="ov-bar"><span class="ov-bar-fill" style="width:${Math.max(3,Math.round(x.v/max*100))}%"></span></span><span class="ov-bar-v">${_statEsc(String(x.g.stats[mode]))}</span></div>`).join('');
+}
+function statChartPick(idx){statChartMode=idx;const b=document.getElementById('stat-chart-body');if(b)b.innerHTML=statChartBars();}
+function statOverviewHtml(){
+  const recorded=G.filter(g=>g.stats&&typeof g.stats==='object');
+  if(!recorded.length||!statModes.length)return '';
+  // A · 項目摘要卡片
+  const cards=statModes.map(m=>{
+    const vals=statNumVals(m);
+    if(!vals.length)return `<div class="ovcard"><div class="ovc-l" title="${_statAttr(m)}">${_statEsc(m)}</div><div class="ovc-n">—</div><div class="ovc-s">尚無數值</div></div>`;
+    const nums=vals.map(x=>x.v);
+    const avg=nums.reduce((a,b)=>a+b,0)/nums.length;
+    const mx=vals.reduce((a,b)=>b.v>a.v?b:a),mn=vals.reduce((a,b)=>b.v<a.v?b:a);
+    return `<div class="ovcard"><div class="ovc-l" title="${_statAttr(m)}">${_statEsc(m)}</div><div class="ovc-n">${statFmt(avg)}</div><div class="ovc-s">最高 ${_statEsc(String(mx.g.stats[m]))} <i>${_statEsc(statTrunc(mx.g.name,8))}</i> · 最低 ${_statEsc(String(mn.g.stats[m]))} <i>${_statEsc(statTrunc(mn.g.name,8))}</i> · ${vals.length} 款</div></div>`;
+  }).join('');
+  // B · 廠商比較表
+  const provsRec=[...STAT_PROV_ORDER.filter(p=>recorded.some(g=>g.provider===p)),...[...new Set(recorded.map(g=>g.provider))].filter(p=>!STAT_PROV_ORDER.includes(p))];
+  const provRow=(label,games)=>{
+    const cells=statModes.map(m=>{
+      const nums=games.map(g=>parseFloat(g.stats[m])).filter(n=>!isNaN(n));
+      return `<td class="num">${nums.length?statFmt(nums.reduce((a,b)=>a+b,0)/nums.length):'—'}</td>`;
+    }).join('');
+    return `<tr><td>${label}</td>${cells}<td class="num">${games.length}</td></tr>`;
+  };
+  const bRows=provsRec.map(p=>provRow(_statEsc(p),recorded.filter(g=>g.provider===p))).join('');
+  const allRow=provsRec.length>1?provRow('<b>全部平均</b>',recorded):'';
+  const bTable=`<div class="ov-tablewrap"><table class="ov-table"><thead><tr><th>廠商</th>${statModes.map(m=>`<th class="num" title="${_statAttr(m)}">${_statEsc(statTrunc(m,8))}</th>`).join('')}<th class="num">記錄數</th></tr></thead><tbody>${bRows}${allRow}</tbody></table></div>`;
+  // D · 視覺長條圖
+  const sel=Math.min(statChartMode,statModes.length-1);
+  const chartSel=`<select class="ov-chart-sel" onchange="statChartPick(this.selectedIndex)">${statModes.map((m,i)=>`<option${i===sel?' selected':''} title="${_statAttr(m)}">${_statEsc(statTrunc(m,16))}</option>`).join('')}</select>`;
+  return `<div class="stat-ov">
+    <div class="stat-ov-title">📊 總攬</div>
+    <div class="ov-cards">${cards}</div>
+    <div class="ov-grid">
+      <div class="ov-block"><div class="ov-blk-h">廠商比較</div>${bTable}</div>
+      <div class="ov-block"><div class="ov-blk-h"><span>長條圖</span>${chartSel}</div><div id="stat-chart-body">${statChartBars()}</div></div>
+    </div>
   </div>`;
 }
 
