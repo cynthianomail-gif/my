@@ -599,7 +599,11 @@ function renderStats(){
     .ovc-s{font-size:10.5px;color:var(--tx3,#9e9085);font-weight:700;line-height:1.55}
     .ovc-s i{font-style:normal;color:var(--tx,#2d2720)}
     .ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .ov-block{background:var(--white,#fff);border:1.5px solid var(--border,#e8e2d8);border-radius:12px;padding:12px 14px;min-width:0}
+    .ov-block{background:var(--bg,#f5f3ef);border:none;border-radius:12px;padding:12px 14px;min-width:0}
+    .ov-body{flex-direction:column;align-items:stretch;gap:12px}
+    .ov-body .ov-cards{margin-bottom:0}
+    .stat-sec-title{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:var(--tx,#2d2720);letter-spacing:.3px;margin:0 0 10px}
+    .stat-sec-title .scnt{font-size:11px;font-weight:700;color:var(--tx3,#9e9085)}
     .ov-blk-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;color:var(--tx,#2d2720);margin-bottom:10px}
     .ov-tablewrap{overflow-x:auto}
     .ov-table{border-collapse:collapse;width:100%;font-size:12px}
@@ -670,7 +674,7 @@ function statFiltered(){
 }
 function statSortRows(rows){
   const k=statSort.k,d=statSort.d;
-  if(!k)return rows.sort((a,b)=>statProvIdx(a.provider)-statProvIdx(b.provider)||a.name.localeCompare(b.name));
+  if(!k)return rows.sort((a,b)=>(b.statAddedAt||0)-(a.statAddedAt||0)||b.id-a.id); // 預設：最新加入的在最上方
   if(k==='name')return rows.sort((a,b)=>d*a.name.localeCompare(b.name));
   return rows.sort((a,b)=>{
     const av=parseFloat(a.stats[k]),bv=parseFloat(b.stats[k]),an=isNaN(av),bn=isNaN(bv);
@@ -682,7 +686,9 @@ function statSortRows(rows){
 function statSortBy(arg){
   const key=(arg==='name')?'name':statModes[arg];
   if(key==null)return;
-  if(statSort.k===key)statSort.d=-statSort.d; else {statSort.k=key;statSort.d=-1;}
+  if(statSort.k!==key){statSort.k=key;statSort.d=-1;}      // 新欄位 → 大到小
+  else if(statSort.d===-1){statSort.d=1;}                  // 再點 → 小到大
+  else {statSort.k=null;statSort.d=-1;}                    // 第三次 → 回到預設（最新優先）
   statRefresh();
 }
 function statRefresh(){
@@ -740,8 +746,9 @@ function statToggleFilters(){
   try{localStorage.setItem('stat_fbar_collapsed',p.classList.contains('collapsed')?'1':'0');}catch(e){}
 }
 function statTableHtml(rows){
-  if(!rows.length)return `<div class="stat-empty">🔍 沒有符合篩選條件的記錄</div>`;
   const recCount=G.filter(g=>g.stats&&typeof g.stats==='object').length;
+  const secTitle=`<div class="stat-sec-title">📋 遊戲清單 <span class="scnt">顯示 ${rows.length} / ${recCount} 款</span></div>`;
+  if(!rows.length)return secTitle+`<div class="stat-empty">🔍 沒有符合篩選條件的記錄</div>`;
   const arrow=act=>act?(statSort.d===-1?' ▾':' ▴'):'';
   const nameAct=statSort.k==='name';
   const modeCols=statModes.map((m,i)=>{
@@ -759,7 +766,7 @@ function statTableHtml(rows){
       <td class="stat-del"><button class="stat-del-btn" title="刪除此記錄" onclick="statDelRow(${g.id})">🗑️</button></td>
     </tr>`;
   }).join('');
-  return `<div class="stat-cnt">顯示 ${rows.length} / ${recCount} 款</div><div class="tcard stat-tcard"><table class="stat-table">
+  return secTitle+`<div class="tcard stat-tcard"><table class="stat-table">
       <thead><tr><th class="stat-game-h sortable${nameAct?' sorted':''}" title="點擊排序" onclick="statSortBy('name')">遊戲${arrow(nameAct)}</th>${modeCols}<th class="stat-del-h"></th></tr></thead>
       <tbody>${body}</tbody>
     </table></div>`;
@@ -806,19 +813,30 @@ function statOverviewHtml(){
   // D · 視覺長條圖
   const sel=Math.min(statChartMode,statModes.length-1);
   const chartSel=`<select class="ov-chart-sel" onchange="statChartPick(this.selectedIndex)">${statModes.map((m,i)=>`<option${i===sel?' selected':''} title="${_statAttr(m)}">${_statEsc(statTrunc(m,16))}</option>`).join('')}</select>`;
-  return `<div class="stat-ov">
-    <div class="stat-ov-title">📊 總攬</div>
-    <div class="ov-cards">${cards}</div>
-    <div class="ov-grid">
-      <div class="ov-block"><div class="ov-blk-h">廠商比較</div>${bTable}</div>
-      <div class="ov-block"><div class="ov-blk-h"><span>長條圖</span>${chartSel}</div><div id="stat-chart-body">${statChartBars()}</div></div>
+  let collapsed='0';try{collapsed=localStorage.getItem('stat_ovpanel_collapsed')||'0';}catch(e){}
+  return `<div class="fpanel${collapsed==='1'?' collapsed':''}" id="stat-ovpanel">
+    <div class="fhead" onclick="statToggleOv()">
+      <span class="ic">📊</span><span class="fhead-title">總攬</span>
+      <span class="fhead-right"><span class="fchev">▾</span></span>
+    </div>
+    <div class="fbody ov-body">
+      <div class="ov-cards">${cards}</div>
+      <div class="ov-grid">
+        <div class="ov-block"><div class="ov-blk-h">廠商比較</div>${bTable}</div>
+        <div class="ov-block"><div class="ov-blk-h"><span>長條圖</span>${chartSel}</div><div id="stat-chart-body">${statChartBars()}</div></div>
+      </div>
     </div>
   </div>`;
+}
+function statToggleOv(){
+  const p=document.getElementById('stat-ovpanel');if(!p)return;
+  p.classList.toggle('collapsed');
+  try{localStorage.setItem('stat_ovpanel_collapsed',p.classList.contains('collapsed')?'1':'0');}catch(e){}
 }
 
 function statAddRow(id){
   const g=G.find(x=>x.id===id);if(!g)return;
-  if(!g.stats||typeof g.stats!=='object')g.stats={};
+  if(!g.stats||typeof g.stats!=='object'){g.stats={};g.statAddedAt=Date.now();}
   saveToStorage();markUnsaved();renderStats();
 }
 function statDelRow(id){
